@@ -9,13 +9,17 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.backlogbattlers.app.R
 import com.backlogbattlers.app.domain.model.Game
+import com.backlogbattlers.app.domain.model.LibraryStatus
 import com.backlogbattlers.app.domain.model.Platform
 import com.backlogbattlers.app.util.formatHours
+import com.backlogbattlers.app.util.formatHoursPlayed
 import com.backlogbattlers.app.util.formatPoints
 import com.backlogbattlers.app.util.inflateChild
 import com.backlogbattlers.app.util.loadArtwork
 import com.backlogbattlers.app.util.loadLandscapeArt
 import com.backlogbattlers.app.util.platformLabel
+import com.backlogbattlers.app.util.statusColor
+import com.backlogbattlers.app.util.statusLabel
 import com.backlogbattlers.app.util.setVisible
 import com.backlogbattlers.app.viewmodels.GameDetailUiState
 
@@ -26,6 +30,9 @@ class GameDetailHeaderAdapter(
     private val onBack: () -> Unit,
     private val onFavouriteToggle: () -> Unit,
     private val onComplete: () -> Unit,
+    // a tap on the status tile, with the tile for the screen to open its dropdown on
+    private val onStatusClick: (View) -> Unit,
+    private val onEditHours: () -> Unit,
 ) : RecyclerView.Adapter<GameDetailHeaderAdapter.ViewHolder>() {
 
     private var state = GameDetailUiState()
@@ -34,7 +41,7 @@ class GameDetailHeaderAdapter(
     override fun getItemCount() = 1
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        return ViewHolder(parent.inflateChild(R.layout.partial_detail_header), onBack, onFavouriteToggle, onComplete)
+        return ViewHolder(parent.inflateChild(R.layout.partial_detail_header), onBack, onFavouriteToggle, onComplete, onStatusClick, onEditHours)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
@@ -56,6 +63,8 @@ class GameDetailHeaderAdapter(
         onBack: () -> Unit,
         onFavouriteToggle: () -> Unit,
         onComplete: () -> Unit,
+        private val onStatusClick: (View) -> Unit,
+        private val onEditHours: () -> Unit,
     ) : RecyclerView.ViewHolder(view) {
 
         private val backdrop: ImageView = view.findViewById(R.id.iv_detail_backdrop)
@@ -69,10 +78,16 @@ class GameDetailHeaderAdapter(
         private val statPoints: TextView = view.findViewById(R.id.tv_stat_points)
         private val statAchievements: TextView = view.findViewById(R.id.tv_stat_achievements)
         private val statCompletionTime: TextView = view.findViewById(R.id.tv_stat_completion_time)
-        private val completeIcon: ImageView = view.findViewById(R.id.iv_detail_complete_icon)
-        private val completeTitle: TextView = view.findViewById(R.id.tv_detail_complete_title)
-        private val completeHint: TextView = view.findViewById(R.id.tv_detail_complete_hint)
         private val completeButton: TextView = view.findViewById(R.id.btn_detail_complete)
+
+        // the two tiles of the progress card: the status dropdown and the hours played
+        private val statusTile: View = view.findViewById(R.id.tile_detail_status)
+        private val statusDot: View = view.findViewById(R.id.dot_detail_status)
+        private val statusValue: TextView = view.findViewById(R.id.tv_detail_status_value)
+        private val statusIcon: ImageView = view.findViewById(R.id.iv_detail_status_icon)
+        private val hoursTile: View = view.findViewById(R.id.tile_detail_hours)
+        private val hoursValue: TextView = view.findViewById(R.id.tv_detail_hours_value)
+        private val hoursIcon: ImageView = view.findViewById(R.id.iv_detail_hours_icon)
 
         init {
             view.findViewById<View>(R.id.btn_detail_back).setOnClickListener { onBack() }
@@ -104,23 +119,48 @@ class GameDetailHeaderAdapter(
             favouriteButton.imageTintList = ContextCompat.getColorStateList(context, color)
 
             renderCompletion(state)
+            renderProgress(state)
         }
 
-        // where the game stands: not completed, its story completed, or 100%. there is nothing left to do
-        // at 100%, so the button goes
-        private fun renderCompletion(state: GameDetailUiState) {
+        // the status with a dot in its colour, and the hours logged. both tiles open something to change them,
+        // except on a game completed to 100%: that is finished with, and its hours are what the bonus was worked
+        // out from, so the tiles show a lock instead of the chevron and the pencil, and a tap does nothing.
+        // a game whose story is completed is not finished with: there is still the 100% to go after
+        private fun renderProgress(state: GameDetailUiState) {
             val context = itemView.context
-            val (title, hint) = when {
-                state.hundredPercentCompleted -> R.string.detail_complete_hundred_title to R.string.detail_complete_hundred_hint
-                state.storyCompleted -> R.string.detail_complete_story_title to R.string.detail_complete_story_hint
-                else -> R.string.detail_complete_none_title to R.string.detail_complete_none_hint
+            val completed = state.hundredPercentCompleted
+            // a game that is not in the library yet reads as not started, which is what picking anything makes it
+            val shown = state.status ?: LibraryStatus.BACKLOG
+
+            statusValue.setText(statusLabel(shown))
+            statusDot.backgroundTintList = ContextCompat.getColorStateList(context, statusColor(shown))
+            statusIcon.setImageResource(if (completed) R.drawable.ic_lock else R.drawable.ic_chevron_down)
+            statusTile.isEnabled = !completed
+            statusTile.setOnClickListener { if (!completed) onStatusClick(statusTile) }
+
+            val hours = state.hoursPlayed
+            hoursValue.text = if (hours == null || hours <= 0f) {
+                context.getString(R.string.hours_unknown)
+            } else {
+                context.getString(R.string.hours_played_value, formatHoursPlayed(hours))
             }
-            completeTitle.setText(title)
-            completeHint.setText(hint)
-            completeIcon.imageTintList = ContextCompat.getColorStateList(context, if (state.storyCompleted) R.color.gold else R.color.text_tertiary)
+            hoursIcon.setVisible(!completed)
+            hoursTile.isEnabled = !completed
+            hoursTile.setOnClickListener { if (!completed) onEditHours() }
+        }
+
+        // the button under the two tiles. it reads "Mark as complete" until the story is completed, then
+        // "Complete to 100%", and says so while the backend is working. there is nothing left to do at 100%, so it goes
+        private fun renderCompletion(state: GameDetailUiState) {
             completeButton.setVisible(!state.hundredPercentCompleted)
             completeButton.isEnabled = !state.completing
-            completeButton.setText(if (state.completing) R.string.detail_completing else R.string.detail_complete_button)
+            completeButton.setText(
+                when {
+                    state.completing -> R.string.detail_completing
+                    state.storyCompleted -> R.string.detail_complete_hundred_action
+                    else -> R.string.detail_complete_button
+                },
+            )
         }
 
         private fun renderGame(game: Game?, platform: Platform?) {

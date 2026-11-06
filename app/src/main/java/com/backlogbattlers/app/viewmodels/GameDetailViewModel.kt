@@ -17,6 +17,7 @@ import com.backlogbattlers.app.domain.model.Game
 import com.backlogbattlers.app.domain.model.LibraryStatus
 import com.backlogbattlers.app.domain.model.Platform
 import com.backlogbattlers.app.util.achievementPoints
+import com.backlogbattlers.app.util.MAX_HOURS_PLAYED
 import com.backlogbattlers.app.util.completionPercent as computeCompletionPercent
 import com.backlogbattlers.app.util.primaryPlatform
 import kotlinx.coroutines.CancellationException
@@ -50,6 +51,10 @@ data class GameDetailUiState(
     val libraryPlatform: Platform? = null,
     // how far the game has been completed, null while it has not been
     val completionType: CompletionType? = null,
+    // where the player stands with the game and the hours they have logged. both are null until the
+    // game is in the library: picking a status or logging hours is what adds it
+    val status: LibraryStatus? = null,
+    val hoursPlayed: Float? = null,
     // the backend is being asked to complete the game
     val completing: Boolean = false,
     // a message from strings.xml for the screen to show once (a tap on an achievement Steam confirmed)
@@ -162,6 +167,8 @@ class GameDetailViewModel(
                     it.copy(
                         libraryPlatform = filedUnder,
                         completionType = entry?.completionType,
+                        status = entry?.status,
+                        hoursPlayed = entry?.hoursPlayed,
                         achievements = achievements.map { a ->
                             AchievementUiItem(a, unlocked = a.achievementId in unlockedIds, verified = a.achievementId in verifiedIds)
                         }.sortedByDescending { item -> item.achievement.rarityPercent ?: 0.0 },
@@ -193,6 +200,53 @@ class GameDetailViewModel(
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Toggling $achievementId on game $gameId failed", e)
+            }
+        }
+    }
+
+    // marks the game as not started, in progress or abandoned; a game not in the library yet is added first.
+    // kept on the phone and uploaded by the library sync, so it works offline. what can change:
+    //  - a game completed to 100% is finished with, so nothing about it changes any more
+    //  - completed is only ever set by completing the game, never picked
+    //  - a game whose story is completed can go back to in progress or abandoned, while the player goes for
+    //    100%, but not back to not started: the story is done
+    fun setStatus(status: LibraryStatus) {
+        val gameId = loadedGameId ?: return
+        val state = _uiState.value
+        if (state.hundredPercentCompleted) return
+        if (status == LibraryStatus.COMPLETED) return
+        if (state.status == LibraryStatus.COMPLETED && status == LibraryStatus.BACKLOG) return
+        if (state.status == status) return
+
+        viewModelScope.launch {
+            try {
+                val entryId = ensureEntry(gameId) ?: return@launch
+                libraryRepository.updateStatus(entryId, status)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Setting game $gameId to $status failed", e)
+            }
+        }
+    }
+
+    // saves the hours the player says they have played. the speed bonus on completing a game compares
+    // them with the game's average time to beat. [hours] has been checked by parseHours already.
+    // the hours of a game completed to 100% are locked, because the bonus was worked out from them. before that
+    // they stay open, even once the story is completed: the 100% has its own speed bonus
+    fun setHours(hours: Float) {
+        val gameId = loadedGameId ?: return
+        if (hours < 0f || hours > MAX_HOURS_PLAYED) return
+        if (_uiState.value.hundredPercentCompleted) return
+
+        viewModelScope.launch {
+            try {
+                val entryId = ensureEntry(gameId) ?: return@launch
+                libraryRepository.updateHoursPlayed(entryId, hours)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Logging $hours hours on game $gameId failed", e)
             }
         }
     }
