@@ -191,13 +191,16 @@
                     tools:text="4 / 20" />
             </LinearLayout>
 
+            <!-- the helper line under the name; EditProfileFragment swaps it for the problem with the name, in red, while there is one -->
             <TextView
+                android:id="@+id/tvDisplayNameHelper"
                 style="@style/Text.Caption"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/page_padding"
                 android:layout_marginTop="10dp"
                 android:layout_marginEnd="@dimen/page_padding"
+                android:accessibilityLiveRegion="polite"
                 android:includeFontPadding="false"
                 android:lineSpacingExtra="2dp"
                 android:text="@string/edit_profile_name_helper"

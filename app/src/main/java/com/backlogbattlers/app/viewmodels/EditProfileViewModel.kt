@@ -9,6 +9,7 @@ import com.backlogbattlers.app.core.ServiceLocator
 import com.backlogbattlers.app.data.repository.AuthRepository
 import com.backlogbattlers.app.data.repository.ProfileCustomizationRepository
 import com.backlogbattlers.app.data.repository.ProfileSaveResult
+import com.backlogbattlers.app.data.repository.SettingsRepository
 import com.backlogbattlers.app.domain.model.ProfileCustomization
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,10 +32,32 @@ data class EditProfileUiState(
     val savedCustomization: ProfileCustomization = ProfileCustomization(),
     val name: String = "",
     val customization: ProfileCustomization = ProfileCustomization(),
+    // which sections of the profile friends get to see, as saved to the account and as being edited
+    val savedShowBadges: Boolean = true,
+    val savedShowShowcase: Boolean = true,
+    val showBadges: Boolean = true,
+    val showShowcase: Boolean = true,
     val saving: Boolean = false,
 ) {
     // true once anything differs from what is saved, so leaving asks before throwing it away
-    val hasChanges: Boolean get() = name.trim() != savedName || customization != savedCustomization
+    val hasChanges: Boolean
+        get() = name.trim() != savedName || customization != savedCustomization ||
+            showBadges != savedShowBadges || showShowcase != savedShowShowcase
+
+    // what is wrong with the name as it stands, from strings.xml, or null when it is fine. an empty name is
+    // only called out once the player has changed it, so the screen doesn't open with an error on it
+    @get:StringRes
+    val nameError: Int?
+        get() = nameProblem(name, edited = name.trim() != savedName)
+}
+
+// what is wrong with a display name, or null when it is fine. [edited] is whether the player has touched
+// it, because a name that is empty before they type anything is not their mistake
+@StringRes
+fun nameProblem(name: String, edited: Boolean): Int? = when {
+    name.trim().length > MAX_DISPLAY_NAME_LENGTH -> R.string.edit_profile_name_too_long
+    name.trim().isEmpty() && edited -> R.string.edit_profile_name_empty
+    else -> null
 }
 
 // how a save attempt ended, for the screen to show once
@@ -48,6 +71,10 @@ sealed class EditProfileEvent {
 class EditProfileViewModel(
     private val authRepository: AuthRepository = ServiceLocator.authRepository,
     private val customizationRepository: ProfileCustomizationRepository = ServiceLocator.profileCustomizationRepository,
+    private val settingsRepository: SettingsRepository = ServiceLocator.settingsRepository,
+    // uploads the settings once the switches are saved. on the application scope, so leaving the screen
+    // right after saving can't cut the upload short
+    private val uploadSettings: () -> Unit = { ServiceLocator.applicationScope.launch { ServiceLocator.settingsSync.push() } },
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EditProfileUiState())
@@ -66,6 +93,7 @@ class EditProfileViewModel(
         viewModelScope.launch {
             val user = authRepository.getCurrentUser()
             val customization = customizationRepository.observeCustomization().first()
+            val settings = settingsRepository.observeSettings().first()
             val name = user?.displayName.orEmpty()
             _uiState.value = EditProfileUiState(
                 loaded = true,
@@ -74,6 +102,10 @@ class EditProfileViewModel(
                 savedCustomization = customization,
                 name = name,
                 customization = customization,
+                savedShowBadges = settings.showBadges,
+                savedShowShowcase = settings.showShowcase,
+                showBadges = settings.showBadges,
+                showShowcase = settings.showShowcase,
             )
         }
     }
@@ -92,9 +124,9 @@ class EditProfileViewModel(
         updateCustomization { it.copy(pictureId = null) }
     }
 
-    fun setShowBadges(show: Boolean) = updateCustomization { it.copy(showBadges = show) }
+    fun setShowBadges(show: Boolean) = _uiState.update { it.copy(showBadges = show) }
 
-    fun setShowShowcase(show: Boolean) = updateCustomization { it.copy(showShowcase = show) }
+    fun setShowShowcase(show: Boolean) = _uiState.update { it.copy(showShowcase = show) }
 
     //------------------------------
     // checks the name, then saves what changed of the name and picture on the account (nothing is kept
@@ -106,9 +138,9 @@ class EditProfileViewModel(
 
         val problem = when {
             !state.signedIn -> R.string.edit_profile_signed_out
+            // an empty name is always a problem when saving, even one that was never touched
             name.isEmpty() -> R.string.edit_profile_name_empty
-            name.length > MAX_DISPLAY_NAME_LENGTH -> R.string.edit_profile_name_too_long
-            else -> null
+            else -> nameProblem(name, edited = true)
         }
         if (problem != null) {
             Log.d(TAG, "Not saving the profile: ${if (state.signedIn) "the name is not valid" else "nobody is signed in"}")
@@ -134,9 +166,23 @@ class EditProfileViewModel(
                 }
             }
             customizationRepository.save(state.customization)
+            // the two section switches are settings: kept here, then uploaded so the account has them and
+            // friends' views honour them (the server hides a section from friends when it is off)
+            if (state.showBadges != state.savedShowBadges || state.showShowcase != state.savedShowShowcase) {
+                settingsRepository.setShowBadges(state.showBadges)
+                settingsRepository.setShowShowcase(state.showShowcase)
+                uploadSettings()
+            }
             Log.i(TAG, "Profile saved")
             _uiState.update {
-                it.copy(saving = false, savedName = name, name = name, savedCustomization = state.customization)
+                it.copy(
+                    saving = false,
+                    savedName = name,
+                    name = name,
+                    savedCustomization = state.customization,
+                    savedShowBadges = state.showBadges,
+                    savedShowShowcase = state.showShowcase,
+                )
             }
             _events.emit(EditProfileEvent.Saved)
         }

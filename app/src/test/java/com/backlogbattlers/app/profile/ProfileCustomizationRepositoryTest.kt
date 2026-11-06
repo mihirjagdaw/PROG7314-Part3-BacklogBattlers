@@ -37,11 +37,7 @@ class ProfileCustomizationRepositoryTest {
     private var signedIn: String? = "alice"
     private val repository = ProfileCustomizationRepositoryImpl(store, currentUserId = { signedIn })
 
-    private val custom = ProfileCustomization(
-        pictureId = "knight",
-        showBadges = false,
-        showShowcase = false,
-    )
+    private val custom = ProfileCustomization(pictureId = "knight")
 
     @After
     fun tearDown() {
@@ -51,13 +47,11 @@ class ProfileCustomizationRepositoryTest {
     private suspend fun current() = repository.observeCustomization().first()
 
     @Test
-    fun `nothing saved yet gives the defaults, with both sections shown`() = runBlocking {
+    fun `nothing saved yet gives the defaults, with no picture`() = runBlocking {
         val defaults = current()
 
         assertEquals(ProfileCustomization(), defaults)
         assertEquals(null, defaults.pictureId)
-        assertEquals(true, defaults.showBadges)
-        assertEquals(true, defaults.showShowcase)
     }
 
     @Test
