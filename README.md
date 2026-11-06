@@ -537,3 +537,15 @@ https://chatgpt.com/share/6ab25b54-4b38-83ea-a847-3833c2b818a5
 Ktor Setup and miscellaneous: <br>
 REST API structure, Android Studio, GitHub, README <br>
 https://chatgpt.com/share/6ab2832b-ffe8-83ea-acc4-661d38f2964a
+
+Assistance for English to Afrikaans and Zulu language translation and feature implementation general assistance and large string conversions:
+utilised within:
+- strings.xml, in values, values-af and values-zu: the text itself in each language.
+- locales_config.xml: lists en, af and zu for Android 13 and up.
+- AndroidManifest.xml: android:localeConfig, and the AppLocalesMetadataHolderService that keeps the choice on older phones.
+- Language.kt: applyLanguage() and currentLanguage(), which switch and read the app language.
+- Models.kt: the AppLanguage enum (en, af, zu).
+- SettingsFragment.kt and SettingsViewModel.kt: the language row and picker in Settings.
+- SettingsRepository.kt and SettingsSync.kt: save the choice and sync it to the account.<br>
+https://chatgpt.com/share/6aee3d6c-d178-83ea-87ae-5ed49e7f28ce
+
