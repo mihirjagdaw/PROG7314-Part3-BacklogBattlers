@@ -359,6 +359,12 @@
     </plurals>
     <string name="profile_error_title">Kukhona okungahambanga kahle</string>
     <string name="profile_error_load">Ayikwazanga ukulayisha iphrofayela yakho. Hlola uxhumano lwakho bese uzama futhi.</string>
+    <string name="profile_error_load_friend">Ayikwazanga ukulayisha le phrofayela. Hlola uxhumano lwakho bese uzama futhi.</string>
+    <string name="profile_error_unavailable">Le phrofayela ayitholakali. Kungenzeka ningasenguo abangane.</string>
+    <string name="profile_badges_hidden">Lo mdlali ugcina amabheji akhe eyimfihlo.</string>
+    <string name="profile_showcase_hidden">Lo mdlali ugcina umbukiso wakhe eyimfihlo.</string>
+    <string name="profile_saved_copy">Ikhophi egciniwe · Ibuyekezwe %1$s</string>
+    <string name="updated_just_now">khona manje</string>
     <string name="badge_first_blood_desc">Vula impumelelo yakho yokuqala emdlalweni ofakiwe ekulandeleni.</string>
     <string name="badge_clean_sweep_desc" formatted="false">Finyelela ku-100% wokuqedwa emdlalweni okokuqala.</string>
     <string name="badge_completion_club_desc" formatted="false">Finyelela ku-100% emidlalweni eyishumi ehlukene.</string>
@@ -473,14 +479,28 @@
     <string name="sync_banner_syncing">Usubuyele ku-inthanethi. Kuvumelaniswa izinguquko zakho…</string>
     <string name="sync_banner_synced">Zonke izinguquko zivumelanisiwe</string>
     <string name="cd_pending_sync">Kulindele ukuvumelanisa</string>
-    <string name="detail_complete_none_title">Akuqedwa okwamanje</string>
-    <string name="detail_complete_none_hint">Uqede indaba noma uvule konke? Kumaka ukuze uthole amaphuzu.</string>
-    <string name="detail_complete_story_title">Indaba iqediwe</string>
-    <string name="detail_complete_story_hint" formatted="false">Vula wonke izimpumelelo bese i-Steam izikuqinisekisa ku-100%.</string>
-    <string name="detail_complete_hundred_title" formatted="false">100% iqediwe</string>
-    <string name="detail_complete_hundred_hint">Zonke izimpumelelo zivuliwe futhi ziqinisekiswe ku-Steam.</string>
     <string name="detail_complete_button">Maka njengokuqediwe</string>
+    <string name="detail_complete_hundred_action">Qeda ku-100%</string>
     <string name="detail_completing">Iyaqeda…</string>
+
+    <!-- imininingwane yomdlalo: inqubekela phambili yakho (isimo namahora adlalwe) -->
+    <string name="detail_progress_title">Inqubekela phambili yakho</string>
+    <string name="status_backlog">Akuqalwanga</string>
+    <string name="status_playing">Kuyaqhubeka</string>
+    <string name="status_abandoned">Kulahliwe</string>
+    <string name="status_completed">Kuqediwe</string>
+    <string name="detail_status_label">Isimo</string>
+    <string name="detail_hours_label">Amahora adlalwe</string>
+    <string name="hours_played_value">%1$s amahora</string>
+    <string name="detail_hours_edit">Hlela</string>
+    <string name="hours_dialog_title">Amahora adlalwe</string>
+    <string name="hours_dialog_message">Uwadlale amahora amangaki lo mdlalo?</string>
+    <string name="hours_dialog_hint">Amahora</string>
+    <string name="hours_dialog_save">Londoloza</string>
+    <string name="hours_error_empty">Faka amahora owadlalile</string>
+    <string name="hours_error_format">Sebenzisa inombolo, njengo-12 noma 12.5</string>
+    <string name="hours_error_negative">Amahora awakwazi ukuba ngaphansi kuka-zero</string>
+    <string name="hours_error_too_large">Lokhu kudlula amahora ayi-100 000. Faka inombolo encane</string>
     <string name="complete_sheet_title">Maka njengokuqediwe</string>
     <string name="complete_story_title">Indaba iqediwe</string>
     <string name="complete_story_hint">Uqede indaba enkulu.</string>

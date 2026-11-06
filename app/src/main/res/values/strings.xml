@@ -391,6 +391,12 @@
     </plurals>
     <string name="profile_error_title">Something went wrong</string>
     <string name="profile_error_load">Couldn\'t load your profile. Check your connection and try again.</string>
+    <string name="profile_error_load_friend">Couldn\'t load this profile. Check your connection and try again.</string>
+    <string name="profile_error_unavailable">This profile isn\'t available. You may no longer be friends.</string>
+    <string name="profile_badges_hidden">This player keeps their badges private.</string>
+    <string name="profile_showcase_hidden">This player keeps their showcase private.</string>
+    <string name="profile_saved_copy">Saved copy · Updated %1$s</string>
+    <string name="updated_just_now">just now</string>
     <string name="badge_first_blood_name" translatable="false">First Blood</string>
     <string name="badge_clean_sweep_name" translatable="false">Clean Sweep</string>
     <string name="badge_completion_club_name" translatable="false">Completion Club</string>
@@ -530,14 +536,28 @@
     <string name="sync_banner_syncing">Back online. Syncing your changes…</string>
     <string name="sync_banner_synced">All changes synced</string>
     <string name="cd_pending_sync">Waiting to sync</string>
-    <string name="detail_complete_none_title">Not completed yet</string>
-    <string name="detail_complete_none_hint">Finished the story, or unlocked everything? Mark it off to earn points.</string>
-    <string name="detail_complete_story_title">Story completed</string>
-    <string name="detail_complete_story_hint" formatted="false">Unlock every achievement and Steam will confirm them for 100%.</string>
-    <string name="detail_complete_hundred_title" formatted="false">100% completed</string>
-    <string name="detail_complete_hundred_hint">Every achievement unlocked and verified on Steam.</string>
     <string name="detail_complete_button">Mark as complete</string>
+    <string name="detail_complete_hundred_action">Complete to 100%</string>
     <string name="detail_completing">Completing…</string>
+
+    <!-- game detail: your progress (status and hours played) -->
+    <string name="detail_progress_title">Your progress</string>
+    <string name="status_backlog">Not started</string>
+    <string name="status_playing">In progress</string>
+    <string name="status_abandoned">Abandoned</string>
+    <string name="status_completed">Completed</string>
+    <string name="detail_status_label">Status</string>
+    <string name="detail_hours_label">Hours played</string>
+    <string name="hours_played_value">%1$sh</string>
+    <string name="detail_hours_edit">Edit</string>
+    <string name="hours_dialog_title">Hours played</string>
+    <string name="hours_dialog_message">How many hours have you played this game?</string>
+    <string name="hours_dialog_hint">Hours</string>
+    <string name="hours_dialog_save">Save</string>
+    <string name="hours_error_empty">Enter the hours you have played</string>
+    <string name="hours_error_format">Use a number, like 12 or 12.5</string>
+    <string name="hours_error_negative">Hours can\'t be negative</string>
+    <string name="hours_error_too_large">That is more than 100,000 hours. Enter a smaller number</string>
     <string name="complete_sheet_title">Mark as complete</string>
     <string name="complete_story_title">Story complete</string>
     <string name="complete_story_hint">You finished the main story.</string>
