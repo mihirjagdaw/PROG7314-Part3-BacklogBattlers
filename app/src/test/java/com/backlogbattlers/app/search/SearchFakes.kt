@@ -139,9 +139,13 @@ class FakeLibraryRepository : LibraryRepository {
         )
     }
 
-    override suspend fun updateStatus(libraryEntryId: String, status: LibraryStatus) = Unit
+    override suspend fun updateStatus(libraryEntryId: String, status: LibraryStatus) {
+        entries.value = entries.value.map { if (it.libraryEntryId == libraryEntryId) it.copy(status = status) else it }
+    }
 
-    override suspend fun updateHoursPlayed(libraryEntryId: String, hours: Float) = Unit
+    override suspend fun updateHoursPlayed(libraryEntryId: String, hours: Float) {
+        entries.value = entries.value.map { if (it.libraryEntryId == libraryEntryId) it.copy(hoursPlayed = hours) else it }
+    }
 
     override suspend fun setAchievementUnlocked(libraryEntryId: String, achievementId: String, unlocked: Boolean) {
         val entry = entries.value.firstOrNull { it.libraryEntryId == libraryEntryId } ?: return
@@ -162,6 +166,13 @@ class FakeLibraryRepository : LibraryRepository {
 
     override suspend fun clear(userId: String) {
         entries.value = emptyList()
+    }
+
+    // what the account would have told the phone after completing a game: its status is completed, as far as [type]
+    fun finish(gameId: Int, type: CompletionType) {
+        entries.value = entries.value.map {
+            if (it.gameId == gameId) it.copy(status = LibraryStatus.COMPLETED, completionType = type) else it
+        }
     }
 
     // what the account would have told the phone: Steam confirmed these unlocks, or the game is completed
@@ -206,6 +217,8 @@ class FakeSettingsRepository : SettingsRepository {
     override suspend fun setHomeBackdrop(backdrop: HomeBackdrop) { settings.update { it.copy(homeBackdrop = backdrop) } }
     override suspend fun setDefaultPlatform(platform: Platform) { settings.update { it.copy(defaultPlatform = platform) } }
     override suspend fun setBiometricLoginEnabled(enabled: Boolean) { settings.update { it.copy(biometricLoginEnabled = enabled) } }
+    override suspend fun setShowBadges(show: Boolean) { settings.update { it.copy(showBadges = show) } }
+    override suspend fun setShowShowcase(show: Boolean) { settings.update { it.copy(showShowcase = show) } }
     override suspend fun setAchievementNotificationsEnabled(enabled: Boolean) { settings.update { it.copy(achievementNotificationsEnabled = enabled) } }
     override suspend fun setRankChangeNotificationsEnabled(enabled: Boolean) { settings.update { it.copy(rankChangeNotificationsEnabled = enabled) } }
     override suspend fun setSeasonResetNotificationsEnabled(enabled: Boolean) { settings.update { it.copy(seasonResetNotificationsEnabled = enabled) } }

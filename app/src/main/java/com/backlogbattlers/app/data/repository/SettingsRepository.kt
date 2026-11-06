@@ -45,6 +45,12 @@ interface SettingsRepository {
     // updates the biometric login preference
     suspend fun setBiometricLoginEnabled(enabled: Boolean)
 
+    // updates whether friends see this user's badges on their profile
+    suspend fun setShowBadges(show: Boolean)
+
+    // updates whether friends see this user's showcase of rarest achievements on their profile
+    suspend fun setShowShowcase(show: Boolean)
+
     // updates the achievement notification preference
     suspend fun setAchievementNotificationsEnabled(enabled: Boolean)
 
@@ -91,6 +97,8 @@ class SettingsRepositoryImpl(
         val NOTIF_RANK_CHANGE = booleanPreferencesKey("notif_rank_change")
         val NOTIF_SEASON_RESET = booleanPreferencesKey("notif_season_reset")
         val NOTIF_FRIEND_ACTIVITY = booleanPreferencesKey("notif_friend_activity")
+        val SHOW_BADGES = booleanPreferencesKey("show_badges")
+        val SHOW_SHOWCASE = booleanPreferencesKey("show_showcase")
         val SYNC_PENDING = booleanPreferencesKey("settings_sync_pending")
         val BIOMETRIC_OFFERED = booleanPreferencesKey("biometric_unlock_offered")
     }
@@ -126,6 +134,8 @@ class SettingsRepositoryImpl(
                 rankChangeNotificationsEnabled = prefs[Keys.NOTIF_RANK_CHANGE] ?: true,
                 seasonResetNotificationsEnabled = prefs[Keys.NOTIF_SEASON_RESET] ?: true,
                 friendActivityNotificationsEnabled = prefs[Keys.NOTIF_FRIEND_ACTIVITY] ?: true,
+                showBadges = prefs[Keys.SHOW_BADGES] ?: true,
+                showShowcase = prefs[Keys.SHOW_SHOWCASE] ?: true,
             )
         }
     }
@@ -179,6 +189,18 @@ class SettingsRepositoryImpl(
     }
 
     //------------------------------
+    // saves whether friends see this user's badges
+    override suspend fun setShowBadges(show: Boolean) {
+        context.dataStore.edit { prefs -> prefs[Keys.SHOW_BADGES] = show }
+    }
+
+    //------------------------------
+    // saves whether friends see this user's showcase
+    override suspend fun setShowShowcase(show: Boolean) {
+        context.dataStore.edit { prefs -> prefs[Keys.SHOW_SHOWCASE] = show }
+    }
+
+    //------------------------------
     // saves achievement notification preference to DataStore
     override suspend fun setAchievementNotificationsEnabled(enabled: Boolean) {
         context.dataStore.edit { prefs ->
@@ -223,6 +245,8 @@ class SettingsRepositoryImpl(
             prefs[Keys.NOTIF_RANK_CHANGE] = settings.rankChangeNotificationsEnabled
             prefs[Keys.NOTIF_SEASON_RESET] = settings.seasonResetNotificationsEnabled
             prefs[Keys.NOTIF_FRIEND_ACTIVITY] = settings.friendActivityNotificationsEnabled
+            prefs[Keys.SHOW_BADGES] = settings.showBadges
+            prefs[Keys.SHOW_SHOWCASE] = settings.showShowcase
         }
     }
 

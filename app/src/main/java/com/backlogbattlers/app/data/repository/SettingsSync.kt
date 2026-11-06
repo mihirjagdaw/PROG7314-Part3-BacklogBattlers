@@ -92,6 +92,8 @@ class SettingsSync(
         rankChangeNotifications = rankChangeNotificationsEnabled,
         seasonResetNotifications = seasonResetNotificationsEnabled,
         friendActivityNotifications = friendActivityNotificationsEnabled,
+        showBadges = showBadges,
+        showShowcase = showShowcase,
     )
 
     // the account's settings on top of this phone's, which supply anything that is not synced
@@ -105,6 +107,8 @@ class SettingsSync(
         rankChangeNotificationsEnabled = rankChangeNotifications,
         seasonResetNotificationsEnabled = seasonResetNotifications,
         friendActivityNotificationsEnabled = friendActivityNotifications,
+        showBadges = showBadges,
+        showShowcase = showShowcase,
     )
 
     private companion object {
