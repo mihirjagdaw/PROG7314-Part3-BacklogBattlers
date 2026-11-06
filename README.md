@@ -83,6 +83,7 @@
     </ul>
   </li>
   <li><a href="#release-notes">Release Notes</a></li>
+  <li><a href="#play-store-readiness">Play Store Readiness</a></li>
   <li><a href="#video-demonstration">Video Demonstration</a></li>
   <li><a href="#references">References</a></li>
   <li><a href="#declaration-of-ai-usage">Declaration of AI Usage</a></li>
@@ -135,6 +136,7 @@ Each requirement from the brief, where to see it in the app, and where it lives 
 | Logging | Logcat and the Azure log stream | `core/ServiceLocator.kt`, API `logging/RequestLogging.kt` | [Logging and Request Tracing](#logging-and-request-tracing) |
 | GitHub, tests and CI | | `.github/workflows/` | [Comprehensive Summary](#comprehensive-summary) |
 | Release notes | | | [Release Notes](#release-notes) |
+| Play Store readiness | Signed APK and AAB, store graphics, screenshots, policy and forms | `play-store/` | [Play Store Readiness](#play-store-readiness) |
 | Video | | | [Video Demonstration](#video-demonstration) |
 | AI write up | | | [Declaration of AI Usage](#declaration-of-ai-usage) |
 
@@ -223,18 +225,18 @@ sequenceDiagram
 #### UD2: Achievement scoring
 **Rarity points.** Each achievement is worth points by how rare it is on Steam: Common (50% or more) 5, Uncommon (20%) 10, Rare (5%) 20, Very Rare (1%) 40 and Ultra Rare (under 1%) 75.
 
-**Completion points.** Mark as complete awards points that scale with IGDB's average hours for the game, plus a speed bonus for finishing at least 10% faster than average. A game can be completed for the main story, main and extras, or to 100%.
+**Completion points.** Mark as complete awards points that scale with IGDB's average hours for the game, plus a speed bonus for finishing at least 10% faster than average. Only the story can be marked as complete directly (i.e. story completion); the game achievements are still checked by Steam and you cannot 100% complete achievements on a game without verification from Steam. Additionally, ticking off achievements yourself works for personal tracking, but does not reflect on the leaderboard to inflate your stats until the game is checked as 100% complete on Steam.
 
 **Verified on Steam.** Achievement points are only paid for unlocks Steam confirms for the linked account. A confirmed unlock can't be unticked, and a game can only be completed to 100% once every achievement is confirmed.
 
-<img src="images/app/10-mark-complete.png" width="250" alt="Mark as complete result with points">
+<img src="images/app/10-mark-complete-options.png" width="250" alt="Mark as complete options"> <img src="images/app/10-mark-complete-confirm.png" width="250" alt="Mark as complete confirmation"> <img src="images/app/10-mark-complete.png" width="250" alt="Mark as complete result with points">
 
 #### UD3: Friends and monthly leaderboard
 **Friends.** Players search for each other and send friend requests, which the other player accepts or rejects.
 
 **Leaderboard.** Completions add to the month's points. Standings show the monthly leaderboard, which resets each month, and the season push announces the new month.
 
-<img src="images/app/11-friends.png" width="250" alt="Friends screen"> <img src="images/app/12-standings.png" width="250" alt="Monthly standings">
+<img src="images/app/11-friends.png" width="250" alt="Friends screen"> <img src="images/app/11-friends-requests.png" width="250" alt="Friend requests"> <img src="images/app/11-friends-search.png" width="250" alt="Find friends"> <img src="images/app/11-friends-accepted.png" width="250" alt="Accepted friend"> <img src="images/app/12-standings.png" width="250" alt="Monthly standings">
 
 #### UD4: User profile
 **What it shows.** Level and XP, 20 badges with their progress, a showcase of the rarest achievements, and the games played in the last two weeks. The name and picture are saved to the account with `PATCH /users/me`, so friends, the leaderboard and the feed show them too. The level rules and badge rules are explained under [Design Consideration and Architectural Choices](#design-consideration-and-architectural-choices).
@@ -402,6 +404,34 @@ Two workflows run on every push. `android-ci.yml` runs the app's unit tests and 
 **Under the hood**
 - Request IDs shared between Logcat and the API logs
 - Deployment to Azure on every merge to `main`, checked through `/health`
+- A signed release build and everything a Play Store submission needs, in `play-store/`
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Play Store Readiness
+
+We prepared Backlog Battlers for the Google Play Store but did not publish it as it was not required. Everything Play Console asks for is in [play-store/](play-store/). [MockReviewProcess.md](play-store/MockReviewProcess.md) goes through each Google Play requirement with our response and a link to the evidence from our app.
+
+**Signed release build.** [backlog-battlers-1.0.apk](play-store/release/backlog-battlers-1.0.apk) is the signed production APK, and [backlog-battlers-1.0.aab](play-store/release/backlog-battlers-1.0.aab) is the bundle we would upload to Play. Both are signed with our own upload key instead of the debug key, which [signing-certificate.txt](play-store/release/signing-certificate.txt) shows. The keystore stays outside the repository. I (Dylan | ST10434135) installed the release APK on my Samsung Galaxy A55 5G and tested it against the hosted API.
+
+**Store material.** The [screenshots](play-store/screenshots/) are 1080x1920 and also have captions, and the [graphics](play-store/graphics/) folder has the 512px icon and the 1024x500 feature graphic. The listing text is in [store-listing.md](play-store/forms/store-listing.md), and we checked against Google Play character limits, and the [privacy policy](play-store/privacy-policy.md) is also public in this repository.
+
+<p>
+<img src="play-store/screenshots/phone-01-achievement-points.png" width="120">
+<img src="play-store/screenshots/phone-02-mark-complete.png" width="120">
+<img src="play-store/screenshots/phone-03-game-search.png" width="120">
+<img src="play-store/screenshots/phone-04-friends.png" width="120">
+<img src="play-store/screenshots/phone-05-notifications.png" width="120">
+<img src="play-store/screenshots/phone-06-offline.png" width="120">
+<img src="play-store/screenshots/phone-07-languages.png" width="120">
+<img src="play-store/screenshots/phone-08-sign-in.png" width="120">
+</p>
+
+**Play Console forms.** Data safety, content rating, target audience, app access and the ads declaration only exist inside a developer account, so our answers are written out in [play-store/forms/](play-store/forms/). Each data safety answer names the database table for it's form data.
+
+**Account deletion.** Play requires it in the app and on the web. Users delete their account under Settings: Delete Account, which removes everything linked to it through `DELETE /users/me`. The web route is the [Delete your account](play-store/privacy-policy.md#delete-your-account) section of the privacy policy.
+
+**What was not included, as it could only be done if we were actually submitting the app** Paying a 25 dollar registration fee, identity verification, the 12 tester closed test and Googles review paid developer account. MockReviewProcess.md describes how we would complete each one and is the main Play Store application process document/ master document for playstore readyness with links to all other docs/images/forms.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

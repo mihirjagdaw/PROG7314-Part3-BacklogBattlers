@@ -1,0 +1,56 @@
+Backlog Battlers 1.0 release signing proof
+Checked on 6 November 2026 with Android SDK build tools 36.1.0 and the JDK bundled with Android Studio.
+Both files are signed with our upload key. The Android debug certificate is CN=Android Debug, so none of the two files are using it.
+
+== backlog-battlers-1.0.apk: apksigner verify --print-certs -v
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+Signer #1 certificate DN: C=ZA, ST=Western Cape, L=Cape Town, O=Backlog Battlers, OU=PROG7314, CN=Backlog Battlers
+Signer #1 certificate SHA-256 digest: 4a043be51cd88f24c09fa4e19357420a08ae6dc587ea7be6d22da1da9b1c0b65
+Signer #1 certificate SHA-1 digest: ca15f1476818d8b7a49f28c03d4ec7ca1c1cc19a
+Signer #1 certificate MD5 digest: f11f9032e069865ef2c59fb778266344
+Signer #1 key algorithm: RSA
+Signer #1 key size (bits): 2048
+
+== backlog-battlers-1.0.aab: jarsigner -verify, then keytool -printcert -jarfile
+jar verified.
+Signer #1:
+Owner: C=ZA, ST=Western Cape, L=Cape Town, O=Backlog Battlers, OU=PROG7314, CN=Backlog Battlers
+Issuer: C=ZA, ST=Western Cape, L=Cape Town, O=Backlog Battlers, OU=PROG7314, CN=Backlog Battlers
+Serial number: 1
+Valid from: Fri Nov 06 18:13:16 SAST 2026 until: Tue Oct 31 18:13:16 SAST 2051
+	 SHA1: CA:15:F1:47:68:18:D8:B7:A4:9F:28:C0:3D:4E:C7:CA:1C:1C:C1:9A
+	 SHA256: 4A:04:3B:E5:1C:D8:8F:24:C0:9F:A4:E1:93:57:42:0A:08:AE:6D:C5:87:EA:7B:E6:D2:2D:A1:DA:9B:1C:0B:65
+Signature algorithm name: SHA256withRSA
+Subject Public Key Algorithm: 2048-bit RSA key
+
+== Package details: aapt2 dump badging
+package: name='com.backlogbattlers.app' versionCode='1' versionName='1.0' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'
+targetSdkVersion:'37'
+application-label:'Backlog Battlers'
+native-code: 'arm64-v8a' 'armeabi-v7a' 'x86' 'x86_64'
+
+== Permissions: aapt2 dump permissions
+package: com.backlogbattlers.app
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.USE_BIOMETRIC'
+uses-permission: name='android.permission.USE_FINGERPRINT'
+uses-permission: name='android.permission.WAKE_LOCK'
+uses-permission: name='com.google.android.c2dm.permission.RECEIVE'
+permission: com.backlogbattlers.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+uses-permission: name='com.backlogbattlers.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+
+== 16 KB page support: zipalign -c -P 16 -v 4
+ 7995392 lib/arm64-v8a/libdatastore_shared_counter.so (OK)
+ 8011776 lib/armeabi-v7a/libdatastore_shared_counter.so (OK)
+ 8028160 lib/x86/libdatastore_shared_counter.so (OK)
+ 8044544 lib/x86_64/libdatastore_shared_counter.so (OK)
+Verification successful
