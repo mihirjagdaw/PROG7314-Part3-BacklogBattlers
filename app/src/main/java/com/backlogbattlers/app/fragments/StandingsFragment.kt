@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.backlogbattlers.app.R
 import com.backlogbattlers.app.adapters.LeaderboardAdapter
+import com.backlogbattlers.app.util.openProfileOf
 import com.backlogbattlers.app.viewmodels.StandingsViewModel
 import kotlinx.coroutines.launch
 
@@ -47,7 +48,10 @@ class StandingsFragment : Fragment() {
         val progressBar = view.findViewById<ProgressBar>(R.id.progress_bar_standings)
         val tvMessage = view.findViewById<TextView>(R.id.tv_standings_message)
 
-        adapter = LeaderboardAdapter()
+        adapter = LeaderboardAdapter(onClick = { entry ->
+            Log.d(TAG, "Opening a player's profile from the standings")
+            findNavController().openProfileOf(entry.userId, viewModel.uiState.value.selfUserId)
+        })
         rvStandings.layoutManager = LinearLayoutManager(requireContext())
         rvStandings.adapter = adapter
 

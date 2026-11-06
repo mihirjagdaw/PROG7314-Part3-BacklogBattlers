@@ -48,16 +48,7 @@ class ProfileCustomizationRepositoryImpl(
             return@flow
         }
         val keys = Keys(userId)
-        val defaults = ProfileCustomization()
-        emitAll(
-            store.data.map { prefs ->
-                ProfileCustomization(
-                    pictureId = prefs[keys.picture],
-                    showBadges = prefs[keys.showBadges] ?: defaults.showBadges,
-                    showShowcase = prefs[keys.showShowcase] ?: defaults.showShowcase,
-                )
-            },
-        )
+        emitAll(store.data.map { prefs -> ProfileCustomization(pictureId = prefs[keys.picture]) })
     }
 
     override suspend fun save(customization: ProfileCustomization) {
@@ -69,8 +60,6 @@ class ProfileCustomizationRepositoryImpl(
         val keys = Keys(userId)
         store.edit { prefs ->
             if (customization.pictureId != null) prefs[keys.picture] = customization.pictureId else prefs.remove(keys.picture)
-            prefs[keys.showBadges] = customization.showBadges
-            prefs[keys.showShowcase] = customization.showShowcase
         }
         Log.d(TAG, "Saved the profile setup: $customization")
     }
@@ -84,9 +73,11 @@ class ProfileCustomizationRepositoryImpl(
     // the keys of one account's values
     private class Keys(userId: String) {
         val picture = stringPreferencesKey("picture_$userId")
-        val showBadges = booleanPreferencesKey("show_badges_$userId")
-        val showShowcase = booleanPreferencesKey("show_showcase_$userId")
-        val all: List<Preferences.Key<*>> = listOf(picture, showBadges, showShowcase)
+        // the two keys the section switches used to be kept under, before they were synced settings: still
+        // cleared with the account, so nothing of it is left on the phone
+        private val oldShowBadges = booleanPreferencesKey("show_badges_$userId")
+        private val oldShowShowcase = booleanPreferencesKey("show_showcase_$userId")
+        val all: List<Preferences.Key<*>> = listOf(picture, oldShowBadges, oldShowShowcase)
     }
 
     private companion object {

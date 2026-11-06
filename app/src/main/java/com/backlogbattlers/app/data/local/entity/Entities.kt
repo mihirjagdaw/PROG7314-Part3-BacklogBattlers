@@ -75,4 +75,19 @@ data class LibraryEntryEntity(
     //the unlocked achievements Steam has confirmed, which cannot be unchecked. matches MIGRATION_7_8 for rows that existed before it
     @ColumnInfo(defaultValue = "") val verifiedAchievementIds: List<String> = emptyList(),
 )
+
+//------------------------------
+// CachedResponseEntity holds the last answer the account's server gave for something a screen shows, so the
+// screen can open offline with it (with a "last updated" label) instead of an error. it is the answer as the
+// server sent it (json), which the repository reads back the same way as a fresh one.
+// kept per signed-in account (viewerId), so a second account on the phone never sees the first one's.
+// keys: "profile:me", "profile:<userId>" for a friend's, "activity:newest" for the newest page of the feed
+@Entity(tableName = "cached_responses", primaryKeys = ["viewerId", "key"])
+data class CachedResponseEntity(
+    val viewerId: String,
+    val key: String,
+    val json: String,
+    // epoch milliseconds the server answered, shown as "Updated 5 min ago"
+    val savedAt: Long,
+)
 //------------------------------EOF------------------------------\\

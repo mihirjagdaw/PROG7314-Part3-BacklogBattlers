@@ -173,8 +173,12 @@ class ActivityFriendsScenarioTest {
         val bobCeleste = addEntry(bob, 2)
         val meCeleste = addEntry(me, 2)
         val month = currentMonthPeriod()
-        // Bob already has 5 points this month, so Alice's completion passes him
-        transaction(db) { MonthlyLeaderboardEntries.insert { it[userId] = bob; it[monthPeriod] = month; it[monthlyPoints] = 5 } }
+        // Me and Bob both have 5 points this month, and Alice's completion goes past both. Only Me is
+        // her friend, so only Me counts as passed: Bob isn't on her (friends-only) leaderboard
+        transaction(db) {
+            MonthlyLeaderboardEntries.insert { it[userId] = me; it[monthPeriod] = month; it[monthlyPoints] = 5 }
+            MonthlyLeaderboardEntries.insert { it[userId] = bob; it[monthPeriod] = month; it[monthlyPoints] = 5 }
+        }
 
         client.befriend(me, alice)
         Thread.sleep(5)
@@ -197,12 +201,12 @@ class ActivityFriendsScenarioTest {
         show("Alice", alices)
         show("Bob", bobs)
 
-        // me: my own unlock, Bob's unlock, Alice's completion and her pass of Bob, her unlocks, then both friendships
+        // me: my own unlock, Bob's unlock, Alice's completion and her pass of me, her unlocks, then both friendships
         assertEquals(
             listOf(
                 ActivityType.ACHIEVEMENT_UNLOCKED, // me, Celeste
                 ActivityType.ACHIEVEMENT_UNLOCKED, // Bob, Celeste
-                ActivityType.RANK_PASSED, // Alice passed Bob
+                ActivityType.RANK_PASSED, // Alice passed me
                 ActivityType.GAME_COMPLETED, // Alice, Hades
                 ActivityType.ACHIEVEMENT_UNLOCKED, // Alice, Hades
                 ActivityType.FRIEND_ADDED, // Bob accepted
@@ -220,7 +224,8 @@ class ActivityFriendsScenarioTest {
         assertEquals(3, unlockedHades.count)
         assertEquals("H_RARE name", unlockedHades.detail) // the rarest of the three
         val passed = mine.single { it.type == ActivityType.RANK_PASSED }
-        assertEquals("Bob", passed.subjectName)
+        assertEquals("Me", passed.subjectName)
+        assertEquals(1, passed.count) // Bob, not her friend, isn't counted
     }
 }
 //------------------------------EOF------------------------------\\

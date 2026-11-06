@@ -47,6 +47,23 @@
             app:tint="@color/text_secondary" />
     </LinearLayout>
 
+    <!-- shown while the feed on screen is the copy saved on this phone (offline, or the server is not answering):
+         says when the server last answered -->
+    <TextView
+        android:id="@+id/tv_activity_saved"
+        style="@style/Text.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/page_padding"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="@dimen/page_padding"
+        android:accessibilityLiveRegion="polite"
+        android:includeFontPadding="false"
+        android:textColor="@color/text_tertiary"
+        android:visibility="gone"
+        tools:text="Saved copy · Updated 5 min ago"
+        tools:visibility="visible" />
+
     <!-- Pull down to refresh. The title, the standings card, the feed and its loading, empty and
          error rows are all one list (see ActivityFeedAdapter), so they scroll together -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout

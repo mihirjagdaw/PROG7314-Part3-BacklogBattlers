@@ -10,11 +10,9 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
 /**
- * This month's standings. Readable without signing in; a signed-in caller also gets their own
- * row pinned in the response, even when it falls outside the returned page.
- *
- * `groupId` is accepted (for the app's own future use) but currently has no effect: the board
- * is global across every user until a friends-only or group-scoped board is built.
+ * This month's standings between the signed-in caller and their friends, including friends who
+ * have not scored yet. The caller's own row is also pinned in `me`, even when it falls outside
+ * the returned page. With nobody signed in the board is simply empty.
  */
 fun Route.leaderboardRoutes(currentUser: CurrentUser) {
 
@@ -26,7 +24,7 @@ fun Route.leaderboardRoutes(currentUser: CurrentUser) {
             return@get call.respond(HttpStatusCode.BadRequest, ApiError("limit must be a whole number of 1 or more"))
         }
 
-        val caller = currentUser(call) // null (not signed in) is fine here: the board itself is public
+        val caller = currentUser(call) // null (not signed in) gets an empty board rather than an error
         call.respond(monthlyLeaderboard(caller, limit = (limit ?: 20).coerceAtMost(MAX_LEADERBOARD_LIMIT)))
     }
 }

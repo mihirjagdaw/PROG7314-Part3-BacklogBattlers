@@ -50,6 +50,7 @@ class EditProfileFragment : Fragment() {
 
     private lateinit var nameField: EditText
     private lateinit var nameCount: TextView
+    private lateinit var nameHelper: TextView
     private lateinit var saveButton: TextView
     private lateinit var removeButton: TextView
     private lateinit var avatar: View
@@ -76,6 +77,7 @@ class EditProfileFragment : Fragment() {
 
         nameField = view.findViewById(R.id.etDisplayName)
         nameCount = view.findViewById(R.id.tvDisplayNameCount)
+        nameHelper = view.findViewById(R.id.tvDisplayNameHelper)
         saveButton = view.findViewById(R.id.btnSaveProfile)
         removeButton = view.findViewById(R.id.btnRemovePhoto)
         avatar = view.findViewById(R.id.avatarEditProfile)
@@ -101,8 +103,8 @@ class EditProfileFragment : Fragment() {
         })
 
         toggles = listOf(
-            bindVisibilityToggle(view, R.id.toggleShowBadges, R.string.profile_show_badges, R.string.profile_show_badges_body, viewModel::setShowBadges) { it.customization.showBadges },
-            bindVisibilityToggle(view, R.id.toggleShowShowcase, R.string.profile_show_showcase, R.string.profile_show_showcase_body, viewModel::setShowShowcase) { it.customization.showShowcase },
+            bindVisibilityToggle(view, R.id.toggleShowBadges, R.string.profile_show_badges, R.string.profile_show_badges_body, viewModel::setShowBadges) { it.showBadges },
+            bindVisibilityToggle(view, R.id.toggleShowShowcase, R.string.profile_show_showcase, R.string.profile_show_showcase_body, viewModel::setShowShowcase) { it.showShowcase },
         )
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -139,13 +141,19 @@ class EditProfileFragment : Fragment() {
 
         avatar.bindProfileAvatar(state.customization.pictureId, state.name.ifBlank { state.savedName })
         nameCount.text = getString(R.string.edit_profile_name_count, state.name.length, MAX_DISPLAY_NAME_LENGTH)
+
+        // the helper line turns into the problem with the name, in red, while there is one
+        val nameError = state.nameError
+        nameHelper.setText(nameError ?: R.string.edit_profile_name_helper)
+        nameHelper.setTextColor(requireContext().getColor(if (nameError != null) R.color.destructive else R.color.text_tertiary))
+        nameCount.setTextColor(requireContext().getColor(if (nameError != null) R.color.destructive else R.color.text_tertiary))
         toggles.forEach { (row, current) -> row.setSettingsToggleChecked(current(state)) }
 
         val canRemove = state.customization.pictureId != null
         removeButton.isEnabled = canRemove
         removeButton.alpha = if (canRemove) 1f else 0.5f
 
-        val canSave = state.loaded && state.hasChanges && !state.saving
+        val canSave = state.loaded && state.hasChanges && !state.saving && nameError == null
         saveButton.isEnabled = canSave
         saveButton.alpha = if (canSave) 1f else 0.5f
 

@@ -180,6 +180,8 @@ The app's preferences, saved to the account so they follow the user to another p
   "rankChangeNotifications": false,
   "seasonResetNotifications": true,
   "friendActivityNotifications": false,
+  "showBadges": true,
+  "showShowcase": false,
   "updatedAt": 1761030000000
 }
 ```
@@ -190,6 +192,7 @@ The app's preferences, saved to the account so they follow the user to another p
 | `themeMode` | `DARK`, `LIGHT` |
 | `homeBackdrop` | `HILLS`, `MOUNTAIN`, `MEADOW`, `FOREST`, `COAST` |
 | `defaultPlatform` | `PC`, `PLAYSTATION`, `XBOX`, `SWITCH` |
+| `showBadges`, `showShowcase` | `true` or `false`. Whether friends who open this user's profile see their badges, and their showcase of rarest achievements. Both default to `true`, also when a `PUT` leaves them out (an older app), and are kept in the `profile_visibility` table. The server honours them in `GET /users/{id}/profile`. |
 | `updatedAt` | Epoch milliseconds, set by the server. Ignored in a `PUT`. |
 
 | Status | Meaning |
@@ -358,6 +361,23 @@ The profile screen's whole answer, worked out from the signed-in user's own data
 | 200 | The profile, as above |
 | 401 | `{"error":"Sign in to see your profile"}` |
 | 404 | `{"error":"Account was not found"}` (the account was deleted) |
+
+### `GET /users/{id}/profile`
+
+A friend's profile: the same answer as `GET /users/me/profile`, as that friend lets you see it. Needs `Authorization: Bearer <access token>`. The app opens it from the friends list, the leaderboard and the activity feed.
+
+- **Who can open it:** the user's own id, and the ids of their friends. Anyone else, and an id that does not exist, get the same `404`, so the route never says who has an account. A friend request that has not been accepted does not count.
+- **What is left out:** a friend can switch off showing their badges, their showcase of rarest achievements, or both (`showBadges` and `showShowcase` in `PUT /users/me/settings`). The server then sends `badges` or `rarestAchievements` as an empty list and sets the extra field `badgesHidden` or `showcaseHidden` to `true`, so the app says "this player keeps their badges private" instead of showing a profile that looks empty. Level, XP, the stats and the recent activity are always shown to friends. Your own profile, even by id, is never trimmed and both flags are `false`.
+- Both flags are `false` on `GET /users/me/profile`.
+
+| Status | Meaning |
+|---|---|
+| 200 | The profile, as `GET /users/me/profile` plus `badgesHidden` and `showcaseHidden` |
+| 400 | `{"error":"User id is not valid"}` |
+| 401 | `{"error":"Sign in to see your profile"}` |
+| 404 | `{"error":"Profile was not found"}`: not a friend (any more), or no such account |
+
+**Offline copy in the app.** The app keeps the last answer it got for the profile (yours, and each friend's it opened) and for the newest page of the activity feed, in its Room database (`cached_responses`, one row per account and screen). With no connection the screens show that copy with a "Saved copy · Updated 5 min ago" label, and replace it with the server's answer as soon as one arrives. A friend who is no longer a friend (a `404`) drops the copy.
 
 ### Completing a game: `POST /users/me/library/{id}/complete`
 

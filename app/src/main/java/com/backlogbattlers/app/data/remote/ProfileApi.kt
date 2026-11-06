@@ -58,9 +58,16 @@ data class ProfileDto(
     val rarestAchievements: List<ShowcaseAchievementDto> = emptyList(),
     val unlockedRecently: Int = 0,
     val recentActivity: List<RecentActivityDto> = emptyList(),
+    // set on a friend's profile when they chose not to show that section, so it says so instead of looking empty
+    val badgesHidden: Boolean = false,
+    val showcaseHidden: Boolean = false,
 )
 
-// authenticated http client for the signed in user's profile: GET /users/me/profile
+// a friend's profile cannot be opened: they are not (or no longer) a friend, or the account is gone. the
+// server answers both the same way on purpose, so this never says which
+class ProfileUnavailableException : Exception("That profile is not available")
+
+// authenticated http client for profiles: GET /users/me/profile and GET /users/{id}/profile
 class ProfileApi(
     private val httpClient: HttpClient,
     private val baseUrl: String,
@@ -73,6 +80,18 @@ class ProfileApi(
             accept(ContentType.Application.Json)
             header(HttpHeaders.Authorization, "Bearer $token")
         }
+        response.checkedBody()
+    }
+
+    //------------------------------
+    // fetches a friend's profile, without the badges or the showcase when they switched those off.
+    // a 404 is ProfileUnavailableException: not a friend (any more), or no such account
+    suspend fun getFriendProfile(userId: String): ProfileDto = tokens.call { token ->
+        val response = httpClient.get("$baseUrl/users/$userId/profile") {
+            accept(ContentType.Application.Json)
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        if (response.status == HttpStatusCode.NotFound) throw ProfileUnavailableException()
         response.checkedBody()
     }
 

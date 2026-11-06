@@ -9,8 +9,11 @@ import com.backlogbattlers.app.data.repository.ProfileCustomizationRepository
 import com.backlogbattlers.app.data.repository.ProfileSaveResult
 import com.backlogbattlers.app.domain.model.ProfileCustomization
 import com.backlogbattlers.app.domain.model.User
+import com.backlogbattlers.app.domain.model.UserSettings
+import com.backlogbattlers.app.search.FakeSettingsRepository
 import com.backlogbattlers.app.viewmodels.EditProfileEvent
 import com.backlogbattlers.app.viewmodels.EditProfileViewModel
+import com.backlogbattlers.app.viewmodels.MAX_DISPLAY_NAME_LENGTH
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +35,9 @@ class EditProfileViewModelTest {
 
     private val auth = FakeAuthRepository()
     private val customization = FakeProfileCustomizationRepository()
+    private val settings = FakeSettingsRepository()
+    // how many times the settings were uploaded to the account
+    private var uploads = 0
 
     @Before
     fun setUp() {
@@ -43,18 +49,20 @@ class EditProfileViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = EditProfileViewModel(auth, customization)
+    private fun viewModel() = EditProfileViewModel(auth, customization, settings, uploadSettings = { uploads++ })
 
     @Test
     fun `the draft starts from the saved name and setup, with nothing to save`() = runTest {
-        customization.saved.value = ProfileCustomization(pictureId = "knight", showBadges = false)
+        customization.saved.value = ProfileCustomization(pictureId = "knight")
+        settings.settings.value = UserSettings(showBadges = false)
 
         val state = viewModel().uiState.value
 
         assertTrue(state.loaded)
         assertEquals("Alex", state.name)
         assertEquals("knight", state.customization.pictureId)
-        assertFalse(state.customization.showBadges)
+        assertFalse(state.showBadges)
+        assertTrue(state.showShowcase)
         assertFalse(state.hasChanges)
     }
 
@@ -83,6 +91,8 @@ class EditProfileViewModelTest {
 
         assertEquals(ProfileCustomization(), customization.saved.value)
         assertEquals("Alex", auth.displayName)
+        assertTrue(settings.settings.value.showBadges)
+        assertEquals(0, uploads)
     }
 
     @Test
@@ -96,7 +106,9 @@ class EditProfileViewModelTest {
         vm.onNameChanged("  Sam ")
         vm.save()
 
-        assertEquals(ProfileCustomization(pictureId = "wizard", showShowcase = false), customization.saved.value)
+        assertEquals(ProfileCustomization(pictureId = "wizard"), customization.saved.value)
+        assertFalse(settings.settings.value.showShowcase)
+        assertEquals(1, uploads) // the account is told, so friends' views honour it
         assertEquals("Sam", auth.displayName)
         assertEquals("wizard", auth.pictureOnAccount) // the account has it too, not just this phone
         assertEquals(listOf<EditProfileEvent>(EditProfileEvent.Saved), events)
@@ -111,7 +123,84 @@ class EditProfileViewModelTest {
         vm.save()
 
         assertEquals(0, auth.writes)
-        assertFalse(customization.saved.value.showBadges)
+        assertFalse(settings.settings.value.showBadges)
+        assertEquals(1, uploads)
+    }
+
+    @Test
+    fun `settings are only uploaded when a section switch changed`() = runTest {
+        val vm = viewModel()
+
+        vm.choosePicture("wizard")
+        vm.onNameChanged("Sam")
+        vm.save()
+
+        assertEquals(0, uploads)
+        assertTrue(settings.settings.value.showBadges)
+        assertTrue(settings.settings.value.showShowcase)
+    }
+
+    @Test
+    fun `switching a section off and back on again is not a change`() = runTest {
+        val vm = viewModel()
+
+        vm.setShowBadges(false)
+        vm.setShowBadges(true)
+        vm.save()
+
+        assertFalse(vm.uiState.value.hasChanges)
+        assertEquals(0, uploads)
+    }
+
+    // ---- the name, as it is typed ----
+
+    @Test
+    fun `a name that is fine has no error`() = runTest {
+        val vm = viewModel()
+
+        vm.onNameChanged("Sam")
+
+        assertNull(vm.uiState.value.nameError)
+    }
+
+    @Test
+    fun `the saved name is not called out before it is touched, even when empty`() = runTest {
+        auth.user = User("u1", "", "alex@example.com", null, 0, 1, 0, null)
+
+        val vm = viewModel()
+
+        assertNull(vm.uiState.value.nameError)
+    }
+
+    @Test
+    fun `clearing the name shows the empty error at once, and typing again clears it`() = runTest {
+        val vm = viewModel()
+
+        vm.onNameChanged("")
+        assertEquals(R.string.edit_profile_name_empty, vm.uiState.value.nameError)
+        vm.onNameChanged("   ")
+        assertEquals(R.string.edit_profile_name_empty, vm.uiState.value.nameError)
+        vm.onNameChanged("S")
+        assertNull(vm.uiState.value.nameError)
+    }
+
+    @Test
+    fun `a name past the limit shows the too long error, and exactly the limit is fine`() = runTest {
+        val vm = viewModel()
+
+        vm.onNameChanged("x".repeat(MAX_DISPLAY_NAME_LENGTH))
+        assertNull(vm.uiState.value.nameError)
+        vm.onNameChanged("x".repeat(MAX_DISPLAY_NAME_LENGTH + 1))
+        assertEquals(R.string.edit_profile_name_too_long, vm.uiState.value.nameError)
+    }
+
+    @Test
+    fun `spaces around a name at the limit do not count towards it`() = runTest {
+        val vm = viewModel()
+
+        vm.onNameChanged("  " + "x".repeat(MAX_DISPLAY_NAME_LENGTH) + "  ")
+
+        assertNull(vm.uiState.value.nameError)
     }
 
     @Test

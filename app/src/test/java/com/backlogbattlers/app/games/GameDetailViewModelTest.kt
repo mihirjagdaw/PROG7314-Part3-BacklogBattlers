@@ -13,11 +13,13 @@ import com.backlogbattlers.app.search.FakeSettingsRepository
 import com.backlogbattlers.app.search.achievement
 import com.backlogbattlers.app.search.game
 import com.backlogbattlers.app.R
+import com.backlogbattlers.app.util.statusChoices
 import com.backlogbattlers.app.viewmodels.GameDetailViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -340,6 +342,151 @@ class GameDetailViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, completion.asked.size)
+    }
+
+    @Test
+    fun `a game not in the library shows no status or hours until one is picked`() = runTest {
+        val viewModel = loadedWithTwoAchievements()
+
+        assertNull(viewModel.uiState.value.status)
+        assertNull(viewModel.uiState.value.hoursPlayed)
+    }
+
+    @Test
+    fun `picking a status adds the game to the library and shows the pick`() = runTest {
+        val viewModel = loadedWithTwoAchievements()
+
+        viewModel.setStatus(LibraryStatus.PLAYING)
+        advanceUntilIdle()
+
+        assertEquals(LibraryStatus.PLAYING, library.observeByGameId(1).first()?.status)
+        assertEquals(LibraryStatus.PLAYING, viewModel.uiState.value.status)
+    }
+
+    @Test
+    fun `the status can be changed between not started, playing and abandoned`() = runTest {
+        val viewModel = loadedWithTwoAchievements()
+        viewModel.setStatus(LibraryStatus.PLAYING)
+        advanceUntilIdle()
+
+        viewModel.setStatus(LibraryStatus.ABANDONED)
+        advanceUntilIdle()
+        assertEquals(LibraryStatus.ABANDONED, viewModel.uiState.value.status)
+
+        viewModel.setStatus(LibraryStatus.BACKLOG)
+        advanceUntilIdle()
+        assertEquals(LibraryStatus.BACKLOG, viewModel.uiState.value.status)
+        assertEquals(1, library.observeLibrary().first().size) // still one entry, not one per pick
+    }
+
+    @Test
+    fun `a status can never be set to completed from the picker`() = runTest {
+        val viewModel = loadedWithTwoAchievements()
+        viewModel.setStatus(LibraryStatus.PLAYING)
+        advanceUntilIdle()
+
+        viewModel.setStatus(LibraryStatus.COMPLETED)
+        advanceUntilIdle()
+
+        assertEquals(LibraryStatus.PLAYING, viewModel.uiState.value.status)
+    }
+
+    // a game with 112 hours logged, then completed as far as [type]
+    private suspend fun TestScope.completedGame(type: CompletionType): GameDetailViewModel {
+        val viewModel = loadedWithTwoAchievements()
+        viewModel.setHours(112f)
+        advanceUntilIdle()
+        library.finish(1, type)
+        advanceUntilIdle()
+        return viewModel
+    }
+
+    @Test
+    fun `a game whose story is completed can still have its hours changed, as there is the 100 percent to go`() = runTest {
+        val viewModel = completedGame(CompletionType.MAIN_STORY)
+
+        viewModel.setHours(140f)
+        advanceUntilIdle()
+
+        assertEquals(140f, viewModel.uiState.value.hoursPlayed)
+    }
+
+    @Test
+    fun `a game whose story is completed can go back to in progress or abandoned`() = runTest {
+        val viewModel = completedGame(CompletionType.MAIN_STORY)
+        assertEquals(LibraryStatus.COMPLETED, viewModel.uiState.value.status)
+
+        viewModel.setStatus(LibraryStatus.PLAYING)
+        advanceUntilIdle()
+        assertEquals(LibraryStatus.PLAYING, viewModel.uiState.value.status)
+
+        viewModel.setStatus(LibraryStatus.ABANDONED)
+        advanceUntilIdle()
+        assertEquals(LibraryStatus.ABANDONED, viewModel.uiState.value.status)
+    }
+
+    @Test
+    fun `a game whose story is completed cannot go back to not started`() = runTest {
+        val viewModel = completedGame(CompletionType.MAIN_STORY)
+
+        viewModel.setStatus(LibraryStatus.BACKLOG)
+        advanceUntilIdle()
+
+        assertEquals(LibraryStatus.COMPLETED, viewModel.uiState.value.status)
+    }
+
+    @Test
+    fun `a game completed to 100 percent is locked, its hours and its status`() = runTest {
+        val viewModel = completedGame(CompletionType.COMPLETIONIST)
+
+        viewModel.setHours(5f)
+        viewModel.setStatus(LibraryStatus.PLAYING)
+        advanceUntilIdle()
+
+        assertEquals(112f, viewModel.uiState.value.hoursPlayed)
+        assertEquals(LibraryStatus.COMPLETED, viewModel.uiState.value.status)
+        assertTrue(viewModel.uiState.value.hundredPercentCompleted)
+    }
+
+    @Test
+    fun `the dropdown offers not started, in progress and abandoned, never completed`() {
+        assertEquals(
+            listOf(LibraryStatus.BACKLOG, LibraryStatus.PLAYING, LibraryStatus.ABANDONED),
+            statusChoices(LibraryStatus.PLAYING),
+        )
+        assertEquals(statusChoices(LibraryStatus.PLAYING), statusChoices(null))
+    }
+
+    @Test
+    fun `for a game with its story completed the dropdown shows completed, in progress and abandoned`() {
+        assertEquals(
+            listOf(LibraryStatus.COMPLETED, LibraryStatus.PLAYING, LibraryStatus.ABANDONED),
+            statusChoices(LibraryStatus.COMPLETED),
+        )
+    }
+
+    @Test
+    fun `logging hours adds the game to the library and shows them`() = runTest {
+        val viewModel = loadedWithTwoAchievements()
+
+        viewModel.setHours(12.5f)
+        advanceUntilIdle()
+
+        assertEquals(12.5f, library.observeByGameId(1).first()?.hoursPlayed)
+        assertEquals(12.5f, viewModel.uiState.value.hoursPlayed)
+    }
+
+    @Test
+    fun `hours that are negative or past the limit are not saved`() = runTest {
+        val viewModel = loadedWithTwoAchievements()
+        viewModel.setHours(3f)
+        advanceUntilIdle()
+
+        viewModel.setHours(-1f)
+        viewModel.setHours(100_001f)
+        advanceUntilIdle()
+
+        assertEquals(3f, viewModel.uiState.value.hoursPlayed)
     }
 
     @Test

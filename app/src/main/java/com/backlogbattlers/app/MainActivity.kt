@@ -117,6 +117,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.aboutFragment,
                 R.id.searchFragment,
                 R.id.gameDetailFragment,
+                // a friend's profile is a drill down from friends, standings or the feed, like a game
+                R.id.friendProfileFragment,
                 -> {
                     bottomNav.visibility = View.GONE
                     navDivider.visibility = View.GONE

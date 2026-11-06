@@ -198,7 +198,9 @@
         android:layout_marginTop="@dimen/section_spacing"
         android:layout_marginEnd="@dimen/page_padding" />
 
-    <!-- Where the game stands, and the button that opens the choice of completing its story or 100% -->
+    <!-- Your progress: where the player stands with the game, and the hours they have played. the status is a
+         dropdown (not started, in progress, abandoned); once the game is completed both tiles are locked, because
+         completing it is what set the status and fixed the hours the speed bonus was worked out from -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -209,56 +211,142 @@
         android:orientation="vertical"
         android:padding="@dimen/card_padding">
 
+        <TextView
+            style="@style/Text.CardTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="@string/detail_progress_title" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:layout_marginTop="16dp"
+            android:baselineAligned="false"
             android:orientation="horizontal">
 
-            <ImageView
-                android:id="@+id/iv_detail_complete_icon"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@drawable/bg_tile_surface"
-                android:contentDescription="@null"
-                android:padding="10dp"
-                android:scaleType="fitCenter"
-                android:src="@drawable/ic_trophy"
-                app:tint="@color/text_tertiary" />
-
+            <!-- Status -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="13dp"
+                android:layout_weight="1.35"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/Text.Overline"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="@string/detail_status_label"
+                    android:textAllCaps="true" />
+
+                <LinearLayout
+                    android:id="@+id/tile_detail_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_field"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:minHeight="56dp"
+                    android:orientation="horizontal"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="14dp">
+
+                    <View
+                        android:id="@+id/dot_detail_status"
+                        android:layout_width="10dp"
+                        android:layout_height="10dp"
+                        android:background="@drawable/bg_status_dot" />
+
+                    <TextView
+                        android:id="@+id/tv_detail_status_value"
+                        style="@style/Text.BodyStrong"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        tools:text="In progress" />
+
+                    <ImageView
+                        android:id="@+id/iv_detail_status_icon"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="8dp"
+                        android:importantForAccessibility="no"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_chevron_down"
+                        app:tint="@color/text_tertiary" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Hours played -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
                 android:layout_weight="1"
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/tv_detail_complete_title"
-                    style="@style/Text.BodyStrong"
-                    android:layout_width="match_parent"
+                    style="@style/Text.Overline"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:includeFontPadding="false"
-                    tools:text="Not completed yet" />
+                    android:text="@string/detail_hours_label"
+                    android:textAllCaps="true" />
 
-                <TextView
-                    android:id="@+id/tv_detail_complete_hint"
-                    style="@style/Text.Micro"
+                <LinearLayout
+                    android:id="@+id/tile_detail_hours"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp"
-                    android:includeFontPadding="false"
-                    android:lineSpacingExtra="2dp"
-                    tools:text="Finished the story, or unlocked everything? Mark it off to earn points." />
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_field"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:minHeight="56dp"
+                    android:orientation="horizontal"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="14dp">
+
+                    <TextView
+                        android:id="@+id/tv_detail_hours_value"
+                        style="@style/Text.BodyStrong"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        tools:text="112h" />
+
+                    <ImageView
+                        android:id="@+id/iv_detail_hours_icon"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="8dp"
+                        android:importantForAccessibility="no"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_pencil"
+                        app:tint="@color/text_tertiary" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
+        <!-- opens the choice of completing the story or going for 100%. gone once the game is at 100% -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_detail_complete"
             style="@style/Widget.App.AccentButton"
             android:layout_width="match_parent"
             android:layout_height="@dimen/cta_height"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="16dp"
             android:text="@string/detail_complete_button" />
     </LinearLayout>
 

@@ -3,6 +3,7 @@ package com.backlogbattlers.app.profile
 import android.app.Activity
 import com.backlogbattlers.app.R
 import com.backlogbattlers.app.data.remote.ProfileApi
+import com.backlogbattlers.app.data.remote.ProfileUnavailableException
 import com.backlogbattlers.app.data.remote.SessionExpiredException
 import com.backlogbattlers.app.data.repository.AccessTokenSource
 import com.backlogbattlers.app.data.repository.AuthRepository
@@ -12,8 +13,11 @@ import com.backlogbattlers.app.data.repository.ProfileCustomizationRepository
 import com.backlogbattlers.app.data.repository.ProfileRepository
 import com.backlogbattlers.app.data.repository.ProfileRepositoryImpl
 import com.backlogbattlers.app.data.repository.ProfileSaveResult
+import com.backlogbattlers.app.data.repository.ResponseCache
+import com.backlogbattlers.app.data.repository.SavedResponse
 import com.backlogbattlers.app.domain.model.BadgeId
 import com.backlogbattlers.app.domain.model.BadgeProgress
+import com.backlogbattlers.app.domain.model.CachedProfile
 import com.backlogbattlers.app.domain.model.Profile
 import com.backlogbattlers.app.domain.model.ProfileCustomization
 import com.backlogbattlers.app.domain.model.User
@@ -46,6 +50,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -99,6 +104,131 @@ class ProfileScreenTest {
         ),
         artFor = { id -> if (id == 7) listOf("https://art.test/7-wide.jpg", "https://art.test/7-cover.jpg") else emptyList() },
     )
+
+    // a ResponseCache that keeps everything in memory, for the repository's offline copy
+    private class InMemoryResponseCache : ResponseCache {
+        val saved = mutableMapOf<String, SavedResponse>()
+        override suspend fun load(key: String): SavedResponse? = saved[key]
+        override suspend fun save(key: String, json: String, savedAt: Long) { saved[key] = SavedResponse(json, savedAt) }
+        override suspend fun clear(userId: String) { saved.clear() }
+    }
+
+    // a repository over the same fake server, answering [status], with an offline copy in [cache]
+    private fun repositoryWith(cache: ResponseCache?, status: HttpStatusCode = HttpStatusCode.OK, clock: () -> Long = { 1L }) =
+        ProfileRepositoryImpl(
+            ProfileApi(
+                httpClient = HttpClient(
+                    MockEngine { request ->
+                        seen += request
+                        if (status == HttpStatusCode.OK) respond(body, status, jsonHeaders) else respond("", status)
+                    },
+                ) {
+                    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+                },
+                baseUrl = "https://api.test",
+                tokens = AccessTokenSource(fresh = { "token" }, renew = { "token" }, endSession = { }),
+            ),
+            cache = cache,
+            clock = clock,
+        )
+
+    @Test
+    fun `a friend's profile is asked for by their id with the callers token`() = runBlocking {
+        repository.getFriendProfile("u2")
+
+        assertEquals("/users/u2/profile", seen.single().url.encodedPath)
+        assertEquals("Bearer token", seen.single().headers[HttpHeaders.Authorization])
+    }
+
+    @Test
+    fun `a friend who is not a friend any more is a profile that is unavailable`() {
+        val notFriends = repositoryWith(cache = null, status = HttpStatusCode.NotFound)
+
+        assertThrows(ProfileUnavailableException::class.java) { runBlocking { notFriends.getFriendProfile("u2") } }
+    }
+
+    @Test
+    fun `the sections a friend keeps private are mapped as hidden`() = runBlocking {
+        body = body.replace("\"unlockedRecently\"", "\"badgesHidden\":true,\"showcaseHidden\":true,\"unlockedRecently\"")
+
+        val profile = repository.getFriendProfile("u2")
+
+        assertTrue(profile.badgesHidden)
+        assertTrue(profile.showcaseHidden)
+    }
+
+    @Test
+    fun `a profile without the hidden flags, as an older server sends it, shows both sections`() = runBlocking {
+        val profile = repository.getProfile()
+
+        assertFalse(profile.badgesHidden)
+        assertFalse(profile.showcaseHidden)
+    }
+
+    @Test
+    fun `a profile that loaded is kept for offline, with when the server answered`() = runBlocking {
+        val cache = InMemoryResponseCache()
+        val cached = repositoryWith(cache, clock = { 4_200L })
+
+        cached.getProfile()
+        val saved = cached.cachedProfile()
+
+        assertEquals(4_200L, saved?.savedAt)
+        assertEquals("Dylan", saved?.profile?.displayName)
+        assertEquals(4, saved?.profile?.level)
+        // read back the way a fresh answer is: the badge this version does not know is still left out
+        assertEquals(listOf(BadgeId.FIRST_BLOOD, BadgeId.NEMESIS), saved?.profile?.badges?.map { it.id })
+    }
+
+    @Test
+    fun `a friend's profile is kept apart from yours and from other friends'`() = runBlocking {
+        val cache = InMemoryResponseCache()
+        val cached = repositoryWith(cache)
+
+        cached.getFriendProfile("u2")
+
+        assertNull(cached.cachedProfile()) // not yours
+        assertNull(cached.cachedProfile("u3")) // not another friend's
+        assertEquals("Dylan", cached.cachedProfile("u2")?.profile?.displayName)
+    }
+
+    @Test
+    fun `a profile that failed to load is not kept, and the older copy stays`() = runBlocking {
+        val cache = InMemoryResponseCache()
+        repositoryWith(cache, clock = { 1_000L }).getProfile()
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { repositoryWith(cache, status = HttpStatusCode.InternalServerError, clock = { 2_000L }).getProfile() }
+        }
+
+        assertEquals(1_000L, repositoryWith(cache).cachedProfile()?.savedAt)
+    }
+
+    @Test
+    fun `a saved profile that can no longer be read counts as none`() = runBlocking {
+        val cache = InMemoryResponseCache()
+        cache.saved["profile:me"] = SavedResponse("this is not json", 1L)
+
+        assertNull(repositoryWith(cache).cachedProfile())
+    }
+
+    @Test
+    fun `without a cache nothing is kept and nothing is read`() = runBlocking {
+        repository.getProfile()
+
+        assertNull(repository.cachedProfile())
+    }
+
+    @Test
+    fun `a cache that cannot save never stops a profile from loading`() = runBlocking {
+        val broken = object : ResponseCache {
+            override suspend fun load(key: String): SavedResponse? = null
+            override suspend fun save(key: String, json: String, savedAt: Long) = throw java.io.IOException("disk full")
+            override suspend fun clear(userId: String) = Unit
+        }
+
+        assertEquals("Dylan", repositoryWith(broken).getProfile().displayName)
+    }
 
     @Test
     fun `the profile is asked for with the callers token`() = runBlocking {
@@ -220,6 +350,23 @@ class ProfileScreenTest {
             failure?.let { throw it }
             return profile
         }
+
+        // friends' profiles by user id, how loading one fails, and the ids asked for
+        val friendProfiles = mutableMapOf<String, Profile>()
+        var friendFailure: Throwable? = null
+        val friendsAsked = mutableListOf<String>()
+
+        override suspend fun getFriendProfile(userId: String): Profile {
+            friendsAsked += userId
+            friendFailure?.let { throw it }
+            return friendProfiles[userId] ?: throw ProfileUnavailableException()
+        }
+
+        // the copies kept for offline: the signed in user's own, and friends' by user id
+        var cached: CachedProfile? = null
+        val cachedFriends = mutableMapOf<String, CachedProfile>()
+
+        override suspend fun cachedProfile(userId: String?): CachedProfile? = if (userId == null) cached else cachedFriends[userId]
     }
 
     private companion object {
@@ -318,6 +465,157 @@ class ProfileScreenTest {
 
         assertNull(vm.state().errorMessage)
         assertEquals(1, vm.state().profile?.level)
+    }
+
+    // ---- a friend's profile ----
+
+    private fun TestScope.friendViewModel(userId: String): ProfileViewModel {
+        val vm = ProfileViewModel(auth, customization, fake, clock = { now }, viewedUserId = userId)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect { } }
+        return vm
+    }
+
+    @Test
+    fun `a friend's profile is loaded by their id, and the name and picture come from it, not from the account`() = runTest {
+        fake.friendProfiles["u2"] = sample(level = 7, pictureId = "pfp_12").copy(userId = "u2", displayName = "Mihir")
+
+        val state = friendViewModel("u2").state()
+
+        assertEquals(listOf("u2"), fake.friendsAsked)
+        assertEquals(0, fake.loads) // the signed in user's own profile is not asked for
+        assertTrue(state.viewingFriend)
+        assertEquals(7, state.profile?.level)
+        assertEquals("Mihir", state.displayName)
+        assertEquals("pfp_12", state.pictureId)
+        assertNull(state.user) // not Alex, who is signed in
+    }
+
+    @Test
+    fun `a friend's profile never changes the signed in user's own picture`() = runTest {
+        customization.saved.value = ProfileCustomization(pictureId = "pfp_03")
+        fake.friendProfiles["u2"] = sample(level = 1, pictureId = "pfp_12").copy(userId = "u2")
+
+        friendViewModel("u2")
+
+        assertEquals("pfp_03", customization.saved.value.pictureId)
+        assertTrue(auth.saved.isEmpty())
+    }
+
+    @Test
+    fun `your own profile is not a friend's view`() = runTest {
+        val state = viewModel().state()
+
+        assertFalse(state.viewingFriend)
+        assertEquals("Alex", state.displayName)
+        assertEquals("pfp_03", state.pictureId)
+    }
+
+    @Test
+    fun `a friend who is no longer a friend shows the unavailable message and no profile`() = runTest {
+        // the fake answers an unknown id the way the server does for a non-friend: ProfileUnavailableException
+        val state = friendViewModel("u9").state()
+
+        assertEquals(R.string.profile_error_unavailable, state.errorMessage)
+        assertNull(state.profile)
+        assertFalse(state.isLoading)
+    }
+
+    @Test
+    fun `a friend's profile that cannot load says so in words about this profile, not yours`() = runTest {
+        fake.friendFailure = java.io.IOException("offline")
+
+        val state = friendViewModel("u2").state()
+
+        assertEquals(R.string.profile_error_load_friend, state.errorMessage)
+    }
+
+    @Test
+    fun `the sections a friend keeps private come through as hidden`() = runTest {
+        fake.friendProfiles["u2"] = sample(level = 2).copy(userId = "u2", badges = emptyList(), badgesHidden = true, showcaseHidden = true)
+
+        val profile = friendViewModel("u2").state().profile
+
+        assertTrue(profile!!.badgesHidden)
+        assertTrue(profile.showcaseHidden)
+        assertTrue(profile.badges.isEmpty())
+    }
+
+    // ---- the copy saved for offline ----
+
+    @Test
+    fun `a saved profile is shown at once when the server cannot be reached, with when it was saved`() = runTest {
+        fake.cached = CachedProfile(sample(level = 5), savedAt = 900_000L)
+        fake.failure = java.io.IOException("offline")
+
+        val state = viewModel().state()
+
+        assertEquals(5, state.profile?.level)
+        assertEquals(900_000L, state.savedAt)
+        assertNull(state.errorMessage) // there is something to show, so it is not an error screen
+        assertFalse(state.isLoading)
+        assertEquals(R.string.profile_error_load, state.message) // a toast says it could not refresh
+    }
+
+    @Test
+    fun `the server's profile replaces the saved one and the saved label goes`() = runTest {
+        fake.cached = CachedProfile(sample(level = 5), savedAt = 900_000L)
+        fake.profile = sample(level = 6)
+
+        val state = viewModel().state()
+
+        assertEquals(6, state.profile?.level)
+        assertNull(state.savedAt)
+    }
+
+    @Test
+    fun `with no saved copy and no connection the error screen shows`() = runTest {
+        fake.failure = java.io.IOException("offline")
+
+        val state = viewModel().state()
+
+        assertNull(state.profile)
+        assertNull(state.savedAt)
+        assertEquals(R.string.profile_error_load, state.errorMessage)
+    }
+
+    @Test
+    fun `coming back online reloads a saved profile even though it is not old`() = runTest {
+        fake.cached = CachedProfile(sample(level = 5), savedAt = 900_000L)
+        fake.failure = java.io.IOException("offline")
+        val vm = viewModel()
+        assertEquals(900_000L, vm.state().savedAt)
+
+        fake.failure = null
+        fake.profile = sample(level = 8)
+        vm.refreshIfStale() // no time has passed, but what is shown is the saved copy
+
+        assertEquals(8, vm.state().profile?.level)
+        assertNull(vm.state().savedAt)
+    }
+
+    @Test
+    fun `a friend's saved profile is shown for that friend, not another's or yours`() = runTest {
+        fake.cachedFriends["u2"] = CachedProfile(sample(level = 4).copy(userId = "u2", displayName = "Mihir"), savedAt = 800_000L)
+        fake.cached = CachedProfile(sample(level = 9), savedAt = 700_000L)
+        fake.friendFailure = java.io.IOException("offline")
+
+        val state = friendViewModel("u2").state()
+
+        assertEquals("Mihir", state.displayName)
+        assertEquals(4, state.profile?.level)
+        assertEquals(800_000L, state.savedAt)
+    }
+
+    @Test
+    fun `a friend who is no longer one drops the saved copy too`() = runTest {
+        fake.cachedFriends["u2"] = CachedProfile(sample(level = 4).copy(userId = "u2"), savedAt = 800_000L)
+        // the server says 404 for u2
+
+        val state = friendViewModel("u2").state()
+
+        assertNull(state.profile)
+        assertNull(state.savedAt)
+        assertEquals(R.string.profile_error_unavailable, state.errorMessage)
     }
 
     @Test

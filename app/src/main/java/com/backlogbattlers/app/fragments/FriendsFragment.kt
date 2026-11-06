@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.backlogbattlers.app.R
 import com.backlogbattlers.app.adapters.FriendAdapter
+import com.backlogbattlers.app.util.openProfileOf
 import com.backlogbattlers.app.adapters.RequestAdapter
 import com.backlogbattlers.app.notifications.OPEN_TAB_REQUESTS
 import com.backlogbattlers.app.notifications.PushNotifications
@@ -75,7 +76,10 @@ class FriendsFragment : Fragment() {
 
         val progressBarFriends = view.findViewById<ProgressBar>(R.id.progress_bar_friends)
 
-        friendAdapter = FriendAdapter()
+        friendAdapter = FriendAdapter(onClick = { friend ->
+            Log.d(TAG, "Opening a friend's profile from the friends list")
+            findNavController().openProfileOf(friend.userId, friendAdapter.currentUserId)
+        })
         requestAdapter = RequestAdapter(
             onAccept = { viewModel.acceptRequest(it.requestId) },
             onReject = { viewModel.rejectRequest(it.requestId) },

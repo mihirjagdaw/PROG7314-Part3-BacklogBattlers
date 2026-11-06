@@ -15,6 +15,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
 /**
@@ -22,6 +24,7 @@ import kotlinx.serialization.Serializable
  * a locale tag (en, af, zu); the theme and backdrop are the app's enum names. The fingerprint lock
  * is not here: it belongs to one phone, not the account.
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class SettingsDto(
     val language: String,
@@ -32,6 +35,11 @@ data class SettingsDto(
     val rankChangeNotifications: Boolean,
     val seasonResetNotifications: Boolean,
     val friendActivityNotifications: Boolean,
+    // whether friends see this user's badges and showcase when they open their profile. always sent,
+    // even when on (the default), so turning one back on reaches the account. an older server that does
+    // not send them leaves both on
+    @EncodeDefault val showBadges: Boolean = true,
+    @EncodeDefault val showShowcase: Boolean = true,
     // epoch milliseconds of the last save, set by the server
     val updatedAt: Long? = null,
 )

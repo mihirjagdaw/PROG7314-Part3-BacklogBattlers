@@ -5,8 +5,10 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -21,6 +23,12 @@ import com.backlogbattlers.app.R
 import com.backlogbattlers.app.adapters.ActivityFeedAdapter
 import com.backlogbattlers.app.adapters.ActivityIntroAdapter
 import com.backlogbattlers.app.adapters.ActivityStatusAdapter
+import com.backlogbattlers.app.domain.model.ActivityEvent
+import com.backlogbattlers.app.util.openProfileOf
+import com.backlogbattlers.app.util.setVisible
+import com.backlogbattlers.app.util.updatedAgo
+import com.backlogbattlers.app.viewmodels.ActivityTap
+import com.backlogbattlers.app.viewmodels.activityTapFor
 import com.backlogbattlers.app.viewmodels.ActivityViewModel
 import kotlinx.coroutines.launch
 
@@ -56,7 +64,7 @@ class ActivityFragment : Fragment() {
             Log.d(TAG, "Opening the standings from the activity feed")
             findNavController().navigate(R.id.action_activityFragment_to_standingsFragment)
         })
-        val feedAdapter = ActivityFeedAdapter()
+        val feedAdapter = ActivityFeedAdapter(onEventClick = ::openEvent)
         val statusAdapter = ActivityStatusAdapter(onRetry = { viewModel.refresh() })
 
         val list = view.findViewById<RecyclerView>(R.id.rv_activity)
@@ -73,6 +81,7 @@ class ActivityFragment : Fragment() {
             }
         })
 
+        val savedLabel = view.findViewById<TextView>(R.id.tv_activity_saved)
         val swipe = view.findViewById<SwipeRefreshLayout>(R.id.swipe_refresh)
         swipe.setColorSchemeColors(ContextCompat.getColor(requireContext(), R.color.accent))
         swipe.setProgressBackgroundColorSchemeColor(ContextCompat.getColor(requireContext(), R.color.surface))
@@ -82,6 +91,10 @@ class ActivityFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     swipe.isRefreshing = state.isRefreshing
+
+                    // while the feed is the copy saved on this phone, say when the server last answered
+                    savedLabel.setVisible(state.savedAt != null)
+                    state.savedAt?.let { savedLabel.text = getString(R.string.profile_saved_copy, requireContext().updatedAgo(it)) }
                     feedAdapter.selfUserId = state.selfUserId
                     feedAdapter.submitList(state.rows)
 
@@ -104,8 +117,31 @@ class ActivityFragment : Fragment() {
         }
     }
 
+    //------------------------------
+    // a tapped row: a completion opens its game, anything else opens the person it is about (see activityTapFor)
+    private fun openEvent(event: ActivityEvent) {
+        val selfUserId = viewModel.uiState.value.selfUserId
+        when (val tap = activityTapFor(event, selfUserId)) {
+            is ActivityTap.Game -> {
+                Log.d(TAG, "Opening a game from the activity feed")
+                findNavController().navigate(
+                    R.id.action_activityFragment_to_gameDetailFragment,
+                    bundleOf(ARG_GAME_ID to tap.gameId.toString()),
+                )
+            }
+            is ActivityTap.Profile -> {
+                Log.d(TAG, "Opening a profile from the activity feed")
+                findNavController().openProfileOf(tap.userId, selfUserId)
+            }
+            ActivityTap.None -> Unit
+        }
+    }
+
     private companion object {
         const val TAG = "ActivityFragment"
+
+        // the gameDetailFragment argument naming the game to show
+        const val ARG_GAME_ID = "gameId"
 
         // rows from the end of the list at which the next page is asked for
         const val LOAD_MORE_AHEAD = 5

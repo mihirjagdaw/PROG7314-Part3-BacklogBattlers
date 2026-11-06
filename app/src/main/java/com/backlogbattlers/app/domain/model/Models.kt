@@ -182,6 +182,10 @@ data class UserSettings(
     val rankChangeNotificationsEnabled: Boolean = true,
     val seasonResetNotificationsEnabled: Boolean = true,
     val friendActivityNotificationsEnabled: Boolean = true,
+    // whether friends who open this user's profile see their badges, and their showcase of rarest
+    // achievements. synced with the account, so the choice follows the user and the server can honour it
+    val showBadges: Boolean = true,
+    val showShowcase: Boolean = true,
 )
 
 // how a signed in user relates to someone found by a friend search

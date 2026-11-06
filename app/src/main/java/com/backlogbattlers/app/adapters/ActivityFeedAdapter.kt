@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.backlogbattlers.app.R
+import com.backlogbattlers.app.domain.model.ActivityEvent
 import com.backlogbattlers.app.util.activityDayLabel
 import com.backlogbattlers.app.util.activityIconFor
 import com.backlogbattlers.app.util.activityIconTint
@@ -29,7 +30,10 @@ import com.google.android.material.imageview.ShapeableImageView
 
 // the feed itself: a day header over each run of that day's events. the activity screen joins this
 // with an intro row above it and a status row below it in one ConcatAdapter
-class ActivityFeedAdapter : ListAdapter<ActivityRow, RecyclerView.ViewHolder>(DiffCallback) {
+class ActivityFeedAdapter(
+    // a tap on an event: a completion opens its game, anything else opens the person's profile
+    private val onEventClick: (ActivityEvent) -> Unit = {},
+) : ListAdapter<ActivityRow, RecyclerView.ViewHolder>(DiffCallback) {
 
     // the signed in user, whose own events say "You". rows are bound again when it arrives or changes
     var selfUserId: String? = null
@@ -97,6 +101,7 @@ class ActivityFeedAdapter : ListAdapter<ActivityRow, RecyclerView.ViewHolder>(Di
                 if (picture != null) holder.ivPicture.setImageResource(picture.drawable) else holder.ivPicture.setImageDrawable(null)
                 holder.ivPicture.setVisible(picture != null)
 
+                holder.itemView.setOnClickListener { onEventClick(event) }
                 holder.tvText.text = context.activityText(event, selfUserId)
                 holder.tvMeta.text = context.activityMeta(event)
                 holder.ivIcon.setImageResource(activityIconFor(event.type))

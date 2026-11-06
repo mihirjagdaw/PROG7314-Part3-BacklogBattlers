@@ -79,7 +79,14 @@ data class Profile(
     // unlocked over every game in the last two weeks
     val unlockedRecently: Int,
     val recentActivity: List<RecentActivity>,
+    // on a friend's profile: they chose not to show their badges, or their showcase. the lists above are
+    // empty then, and the screen says so instead of looking like they have none
+    val badgesHidden: Boolean = false,
+    val showcaseHidden: Boolean = false,
 ) {
     val badgesEarned: Int get() = badges.count { it.earned }
 }
+
+// a profile as it was last saved for offline: when the server last answered, so the screen can say "Updated 5 min ago"
+data class CachedProfile(val profile: Profile, val savedAt: Long)
 //------------------------------EOF------------------------------\\

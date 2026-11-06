@@ -183,6 +183,8 @@ class BiometricLockViewModelTest {
         override suspend fun setThemeMode(mode: ThemeMode) {}
         override suspend fun setHomeBackdrop(backdrop: HomeBackdrop) {}
         override suspend fun setDefaultPlatform(platform: Platform) {}
+        override suspend fun setShowBadges(show: Boolean) {}
+        override suspend fun setShowShowcase(show: Boolean) {}
         override suspend fun setAchievementNotificationsEnabled(enabled: Boolean) {}
         override suspend fun setRankChangeNotificationsEnabled(enabled: Boolean) {}
         override suspend fun setSeasonResetNotificationsEnabled(enabled: Boolean) {}

@@ -122,6 +122,7 @@ class SettingsViewModel : ViewModel() {
                 if (userId != null) ServiceLocator.libraryRepository.clear(userId)
                 if (userId != null) ServiceLocator.searchHistoryRepository.clear(userId)
                 if (userId != null) ServiceLocator.profileCustomizationRepository.clear(userId)
+                if (userId != null) ServiceLocator.responseCache.clear(userId)
                 settingsRepository.setBiometricLoginEnabled(false)
                 ServiceLocator.unlockKey.delete()
                 settingsRepository.setSyncPending(false)

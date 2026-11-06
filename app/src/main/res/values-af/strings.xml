@@ -359,6 +359,12 @@
     </plurals>
     <string name="profile_error_title">Iets het verkeerd gegaan</string>
     <string name="profile_error_load">Kon nie jou profiel laai nie. Kyk na jou verbinding en probeer weer.</string>
+    <string name="profile_error_load_friend">Kon nie hierdie profiel laai nie. Kyk na jou verbinding en probeer weer.</string>
+    <string name="profile_error_unavailable">Hierdie profiel is nie beskikbaar nie. Julle is dalk nie meer vriende nie.</string>
+    <string name="profile_badges_hidden">Hierdie speler hou hul kentekens privaat.</string>
+    <string name="profile_showcase_hidden">Hierdie speler hou hul vertoonkas privaat.</string>
+    <string name="profile_saved_copy">Gestoorde kopie · Opgedateer %1$s</string>
+    <string name="updated_just_now">sopas</string>
     <string name="badge_first_blood_desc">Ontsluit jou eerste prestasie in enige gevolgde speletjie.</string>
     <string name="badge_clean_sweep_desc" formatted="false">Bereik vir die eerste keer 100% voltooiing in \'n speletjie.</string>
     <string name="badge_completion_club_desc" formatted="false">Haal 100% in tien verskillende speletjies.</string>
@@ -473,14 +479,28 @@
     <string name="sync_banner_syncing">Weer aanlyn. Sinkroniseer tans jou veranderinge…</string>
     <string name="sync_banner_synced">Alle veranderinge is gesinkroniseer</string>
     <string name="cd_pending_sync">Wag om te sinkroniseer</string>
-    <string name="detail_complete_none_title">Nog nie voltooi nie</string>
-    <string name="detail_complete_none_hint">Die storie klaar of alles ontsluit? Merk dit af om punte te verdien.</string>
-    <string name="detail_complete_story_title">Storie voltooi</string>
-    <string name="detail_complete_story_hint" formatted="false">Ontsluit elke prestasie en Steam sal dit vir 100% bevestig.</string>
-    <string name="detail_complete_hundred_title" formatted="false">100% voltooi</string>
-    <string name="detail_complete_hundred_hint">Elke prestasie ontsluit en op Steam geverifieer.</string>
     <string name="detail_complete_button">Merk as voltooi</string>
+    <string name="detail_complete_hundred_action">Voltooi tot 100%</string>
     <string name="detail_completing">Voltooi tans…</string>
+
+    <!-- speletjiebesonderhede: jou vordering (status en ure gespeel) -->
+    <string name="detail_progress_title">Jou vordering</string>
+    <string name="status_backlog">Nog nie begin nie</string>
+    <string name="status_playing">Aan die gang</string>
+    <string name="status_abandoned">Laat vaar</string>
+    <string name="status_completed">Voltooi</string>
+    <string name="detail_status_label">Status</string>
+    <string name="detail_hours_label">Ure gespeel</string>
+    <string name="hours_played_value">%1$su</string>
+    <string name="detail_hours_edit">Wysig</string>
+    <string name="hours_dialog_title">Ure gespeel</string>
+    <string name="hours_dialog_message">Hoeveel ure het jy hierdie speletjie gespeel?</string>
+    <string name="hours_dialog_hint">Ure</string>
+    <string name="hours_dialog_save">Stoor</string>
+    <string name="hours_error_empty">Voer die ure in wat jy gespeel het</string>
+    <string name="hours_error_format">Gebruik \'n getal, soos 12 of 12.5</string>
+    <string name="hours_error_negative">Ure kan nie negatief wees nie</string>
+    <string name="hours_error_too_large">Dit is meer as 100 000 ure. Voer \'n kleiner getal in</string>
     <string name="complete_sheet_title">Merk as voltooi</string>
     <string name="complete_story_title">Storie voltooi</string>
     <string name="complete_story_hint">Jy het die hoofstorie klaargemaak.</string>

@@ -31,4 +31,7 @@ data class ActivityEvent(
 
 // one page of the feed, newest first. nextBefore is what to ask for the following page with, null on the last
 data class ActivityPage(val events: List<ActivityEvent>, val nextBefore: Long?)
+
+// the newest page as it was last saved for offline, and when the server answered with it
+data class CachedActivity(val page: ActivityPage, val savedAt: Long)
 //------------------------------EOF------------------------------\\

@@ -2,9 +2,10 @@ package com.backlogbattlers.api.scoring
 
 import com.backlogbattlers.api.db.MonthlyLeaderboardEntries
 import com.backlogbattlers.api.db.Users
+import com.backlogbattlers.api.friends.friendIdsOf
 import com.backlogbattlers.api.profile.pictureIdsFor
 import kotlinx.serialization.Serializable
-import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
@@ -45,56 +46,45 @@ fun monthlyPointsFor(userId: Uuid, monthPeriod: String = currentMonthPeriod()): 
 }
 
 /**
- * The top [limit] scorers for [monthPeriod] (the current month by default), plus [caller]'s own
- * row and rank so the app can always pin it, even when they are outside the top [limit].
- * [caller] is null when nobody is signed in; the leaderboard itself needs no sign-in to read.
+ * This month's standings between [caller] and their friends: the top [limit] of them, plus
+ * [caller]'s own row and rank so the app can always pin it. Friends who have not scored this
+ * month are still listed, at 0 points, sharing the last rank. Equal points are listed by name.
  *
- * Leaderboard is global across all users for now. `groupId`/friends-only scoping is a stretch
- * goal for the final POE, once a notion of "which group" is settled with the team.
+ * The board is friends-only, so with nobody signed in ([caller] null) it is empty.
  */
 fun monthlyLeaderboard(caller: Uuid?, monthPeriod: String = currentMonthPeriod(), limit: Int = DEFAULT_LIMIT): LeaderboardResponseDto = transaction {
-    val rows = MonthlyLeaderboardEntries.selectAll()
-        .where { MonthlyLeaderboardEntries.monthPeriod eq monthPeriod }
-        .orderBy(MonthlyLeaderboardEntries.monthlyPoints, SortOrder.DESC)
-        .toList()
+    val seasonEndsAt = seasonEndsAt(monthPeriod).toEpochMilli()
+    if (caller == null) return@transaction LeaderboardResponseDto(monthPeriod, seasonEndsAt, emptyList(), me = null)
 
-    val ranks = competitionRanks(rows.map { it[MonthlyLeaderboardEntries.monthlyPoints] })
-    val userIds = rows.map { it[MonthlyLeaderboardEntries.userId] }
-    val usersById = if (userIds.isEmpty()) emptyMap() else {
-        Users.selectAll().where { Users.id inList userIds }.associateBy { it[Users.id] }
-    }
+    val players = (listOf(caller) + friendIdsOf(caller)).distinct()
+    val points = MonthlyLeaderboardEntries.selectAll()
+        .where { (MonthlyLeaderboardEntries.monthPeriod eq monthPeriod) and (MonthlyLeaderboardEntries.userId inList players) }
+        .associate { it[MonthlyLeaderboardEntries.userId] to it[MonthlyLeaderboardEntries.monthlyPoints] }
+    val users = Users.selectAll().where { Users.id inList players }.toList()
+    val pictures = pictureIdsFor(players)
 
-    val pictures = pictureIdsFor(userIds + listOfNotNull(caller))
+    // highest first; a tie (including everyone still on 0) is listed by name so the order never jumps around
+    val sorted = users.sortedWith(
+        compareByDescending<ResultRow> { points[it[Users.id]] ?: 0 }
+            .thenBy { it[Users.displayName].lowercase() }
+            .thenBy { it[Users.id].toString() },
+    )
+    val ranks = competitionRanks(sorted.map { points[it[Users.id]] ?: 0 })
 
-    val ranked = rows.mapIndexedNotNull { index, row ->
-        val user = usersById[row[MonthlyLeaderboardEntries.userId]] ?: return@mapIndexedNotNull null
+    val ranked = sorted.mapIndexed { index, user ->
+        val id = user[Users.id]
         LeaderboardEntryDto(
             rank = ranks[index],
-            userId = row[MonthlyLeaderboardEntries.userId].toString(),
+            userId = id.toString(),
             displayName = user[Users.displayName],
             avatarUrl = user[Users.avatarUrl],
-            monthlyPoints = row[MonthlyLeaderboardEntries.monthlyPoints],
-            pictureId = pictures[row[MonthlyLeaderboardEntries.userId]],
+            monthlyPoints = points[id] ?: 0,
+            pictureId = pictures[id],
         )
     }
 
-    val me = caller?.let { id -> callerRow(id, ranked, pictures[id]) }
-    LeaderboardResponseDto(monthPeriod, seasonEndsAt(monthPeriod).toEpochMilli(), ranked.take(limit), me)
-}
-
-/** The caller's row from [ranked] if they are on the board, otherwise a zero-point row placed one past the last rank. */
-private fun callerRow(caller: Uuid, ranked: List<LeaderboardEntryDto>, pictureId: String?): LeaderboardEntryDto? {
-    ranked.find { it.userId == caller.toString() }?.let { return it }
-
-    val user = Users.selectAll().where { Users.id eq caller }.singleOrNull() ?: return null
-    return LeaderboardEntryDto(
-        rank = (ranked.maxOfOrNull { it.rank } ?: 0) + 1,
-        userId = caller.toString(),
-        displayName = user[Users.displayName],
-        avatarUrl = user[Users.avatarUrl],
-        monthlyPoints = 0,
-        pictureId = pictureId,
-    )
+    val me = ranked.find { it.userId == caller.toString() }
+    LeaderboardResponseDto(monthPeriod, seasonEndsAt, ranked.take(limit), me)
 }
 
 /**

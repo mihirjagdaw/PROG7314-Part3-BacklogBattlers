@@ -10,6 +10,7 @@ import com.backlogbattlers.api.db.LibraryEntries
 import com.backlogbattlers.api.db.LibraryStatus
 import com.backlogbattlers.api.db.MonthlyLeaderboardEntries
 import com.backlogbattlers.api.db.UnlockedAchievements
+import com.backlogbattlers.api.friends.friendIdsOf
 import com.backlogbattlers.api.notifications.overtaken
 import com.backlogbattlers.api.steam.SteamCheck
 import com.backlogbattlers.api.steam.SteamCheckStatus
@@ -195,13 +196,14 @@ fun completeLibraryEntry(
 
     val newMonthlyTotal = addMonthlyPoints(owner, monthPeriod, totalPoints)
 
-    // the feed: the completion itself, and who it lifted them past on this month's leaderboard
+    // the feed: the completion itself, and which friends it lifted them past on this month's (friends-only) leaderboard
     // the pass is a result of the completion, so it is stamped a millisecond later: it then always sits
     // above the completion in the feed, instead of the two tying and showing in either order
     val happenedAt = Instant.now()
     recordActivity(owner, ActivityType.GAME_COMPLETED, gameId = gameId, points = totalPoints, detail = completionType.name, at = happenedAt)
+    val friends = friendIdsOf(owner)
     val standings = MonthlyLeaderboardEntries.selectAll()
-        .where { MonthlyLeaderboardEntries.monthPeriod eq monthPeriod }
+        .where { (MonthlyLeaderboardEntries.monthPeriod eq monthPeriod) and (MonthlyLeaderboardEntries.userId inList friends) }
         .associate { it[MonthlyLeaderboardEntries.userId] to it[MonthlyLeaderboardEntries.monthlyPoints] }
     val passed = overtaken(owner, pointsBefore = newMonthlyTotal - totalPoints, pointsAfter = newMonthlyTotal, standings = standings)
     if (passed.isNotEmpty()) {

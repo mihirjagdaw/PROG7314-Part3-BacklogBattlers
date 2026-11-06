@@ -23,6 +23,8 @@ import com.backlogbattlers.app.util.medalTierColor
 class FriendAdapter(
     var currentUserId: String? = null,
     var showRank: Boolean = true,
+    // a tap on a friend's row, which opens their profile
+    private val onClick: ((Friend) -> Unit)? = null,
 ) : ListAdapter<Friend, FriendAdapter.ViewHolder>(DiffCallback) {
 
     // viewholder wrapping views for a single friend row
@@ -89,6 +91,7 @@ class FriendAdapter(
         holder.ivAvatarPicture.showProfilePicture(friend.pictureId)
 
         holder.tvFriendName.text = friend.displayName
+        holder.itemView.setOnClickListener(onClick?.let { tapped -> View.OnClickListener { tapped(friend) } })
 
         val isSelf = friend.userId == currentUserId
         // this if statement shows the (You) suffix and applies a highlighted card background when the row is the signed in user

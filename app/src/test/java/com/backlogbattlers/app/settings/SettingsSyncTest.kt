@@ -158,6 +158,38 @@ class SettingsSyncTest {
     }
 
     @Test
+    fun `the two profile section switches are uploaded, and are sent even when they are on`() = runBlocking {
+        settings.settings.value = UserSettings(showBadges = false, showShowcase = true)
+
+        sync().push()
+
+        val body = sentBody()
+        assertFalse(body["showBadges"]!!.jsonPrimitive.boolean)
+        // an "on" must reach the account too, or turning a section back on would never be saved
+        assertTrue(body["showShowcase"]!!.jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun `the switches come down with the account's settings on another phone`() = runBlocking {
+        getBody = savedOnAccount.replace("\"updatedAt\"", "\"showBadges\":false,\"showShowcase\":true,\"updatedAt\"")
+
+        sync().sync()
+
+        assertFalse(settings.settings.value.showBadges)
+        assertTrue(settings.settings.value.showShowcase)
+    }
+
+    @Test
+    fun `an account that has never saved the switches has both on`() = runBlocking {
+        settings.settings.value = UserSettings(showBadges = false, showShowcase = false)
+
+        sync().sync() // savedOnAccount has no switches in it, as an older server would answer
+
+        assertTrue(settings.settings.value.showBadges)
+        assertTrue(settings.settings.value.showShowcase)
+    }
+
+    @Test
     fun `nothing is sent when nobody is signed in`() = runBlocking {
         signedIn = false
 

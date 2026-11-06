@@ -1,6 +1,7 @@
 package com.backlogbattlers.api.scoring
 
 import com.backlogbattlers.api.db.DatabaseFactory
+import com.backlogbattlers.api.db.Friendships
 import com.backlogbattlers.api.db.MonthlyLeaderboardEntries
 import com.backlogbattlers.api.db.Users
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -46,11 +47,20 @@ class LeaderboardTest {
         }[Users.id]
     }
 
-    private fun givePoints(user: Uuid, points: Int) = transaction(db) {
+    private fun givePoints(user: Uuid, points: Int, monthPeriod: String = month) = transaction(db) {
         MonthlyLeaderboardEntries.insert {
             it[MonthlyLeaderboardEntries.userId] = user
-            it[monthPeriod] = month
+            it[MonthlyLeaderboardEntries.monthPeriod] = monthPeriod
             it[monthlyPoints] = points
+        }
+    }
+
+    // friendships are stored once per pair, with the smaller id (as a string) first
+    private fun befriend(a: Uuid, b: Uuid) = transaction(db) {
+        val (first, second) = if (a.toString() < b.toString()) a to b else b to a
+        Friendships.insert {
+            it[userAId] = first
+            it[userBId] = second
         }
     }
 
@@ -68,25 +78,63 @@ class LeaderboardTest {
     }
 
     @Test
-    fun `the leaderboard is ordered highest first with the real ranking rule applied`() {
+    fun `the board is the caller and their friends, highest first, with the real ranking rule applied`() {
+        val me = newUser("Me")
         val alice = newUser("Alice")
         val bob = newUser("Bob")
         val cara = newUser("Cara")
+        listOf(alice, bob, cara).forEach { befriend(me, it) }
         givePoints(alice, 500)
         givePoints(bob, 300)
         givePoints(cara, 300) // ties with Bob
+        givePoints(me, 100)
 
-        val board = monthlyLeaderboard(caller = null, monthPeriod = month)
+        val board = monthlyLeaderboard(caller = me, monthPeriod = month)
 
-        assertEquals(listOf("Alice", "Bob", "Cara"), board.entries.map { it.displayName })
-        assertEquals(listOf(1, 2, 2), board.entries.map { it.rank })
+        assertEquals(listOf("Alice", "Bob", "Cara", "Me"), board.entries.map { it.displayName })
+        assertEquals(listOf(1, 2, 2, 4), board.entries.map { it.rank })
         assertEquals(month, board.monthPeriod)
+    }
+
+    @Test
+    fun `people who are not your friends are never on your board, however many points they have`() {
+        val me = newUser("Me")
+        val friend = newUser("Friend")
+        val stranger = newUser("Stranger")
+        val friendOfFriend = newUser("FriendOfFriend")
+        befriend(me, friend)
+        befriend(friend, friendOfFriend)
+        givePoints(stranger, 9_000)
+        givePoints(friendOfFriend, 5_000)
+        givePoints(friend, 10)
+
+        val board = monthlyLeaderboard(caller = me, monthPeriod = month)
+
+        assertEquals(listOf("Friend", "Me"), board.entries.map { it.displayName })
+    }
+
+    @Test
+    fun `friends who have not scored this month are listed at zero, sharing the last rank, by name`() {
+        val me = newUser("Me")
+        val scorer = newUser("Scorer")
+        val zed = newUser("Zed")
+        val amy = newUser("amy") // lower case, still sorted as A
+        listOf(scorer, zed, amy).forEach { befriend(me, it) }
+        givePoints(scorer, 200)
+        givePoints(zed, 999, monthPeriod = "2026-08") // last month's points don't count
+
+        val board = monthlyLeaderboard(caller = me, monthPeriod = month)
+
+        assertEquals(listOf("Scorer", "amy", "Me", "Zed"), board.entries.map { it.displayName })
+        assertEquals(listOf(200, 0, 0, 0), board.entries.map { it.monthlyPoints })
+        assertEquals(listOf(1, 2, 2, 2), board.entries.map { it.rank })
     }
 
     @Test
     fun `the caller's own row is pinned even when it falls outside the returned page`() {
         val leader = newUser("Leader")
         val last = newUser("LastPlace")
+        befriend(leader, last)
         givePoints(leader, 1000)
         givePoints(last, 1)
 
@@ -99,37 +147,23 @@ class LeaderboardTest {
     }
 
     @Test
-    fun `a caller with no score this month is placed one past everyone else, at zero points`() {
-        val alice = newUser("Alice")
-        val bob = newUser("Bob")
-        givePoints(alice, 100)
-        givePoints(bob, 100) // ties with Alice, both rank 1
+    fun `someone with no friends yet sees just themselves`() {
+        val user = newUser("EarlyBird")
 
-        val unscored = newUser("Unscored")
-        val board = monthlyLeaderboard(caller = unscored, monthPeriod = month)
+        val board = monthlyLeaderboard(caller = user, monthPeriod = "2020-01")
 
-        assertEquals(2, board.me?.rank) // one past the highest rank actually used (1), not 3
+        assertEquals(listOf("EarlyBird"), board.entries.map { it.displayName })
+        assertEquals(1, board.me?.rank)
         assertEquals(0, board.me?.monthlyPoints)
     }
 
     @Test
-    fun `nobody signed in means no me row, but the board itself still comes back`() {
+    fun `nobody signed in means an empty board and no me row`() {
         givePoints(newUser("Someone"), 50)
 
         val board = monthlyLeaderboard(caller = null, monthPeriod = month)
 
         assertNull(board.me)
-        assertEquals(1, board.entries.size)
-    }
-
-    @Test
-    fun `an empty month has an empty board and no crash for a signed-in caller`() {
-        val user = newUser("EarlyBird")
-
-        val board = monthlyLeaderboard(caller = user, monthPeriod = "2020-01")
-
         assertEquals(emptyList(), board.entries)
-        assertEquals(1, board.me?.rank)
-        assertEquals(0, board.me?.monthlyPoints)
     }
 }
