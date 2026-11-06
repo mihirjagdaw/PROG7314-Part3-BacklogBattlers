@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.StrictMode
 import android.util.Log
 import com.backlogbattlers.app.core.ServiceLocator
+import com.backlogbattlers.app.notifications.AppVisibility
 import com.backlogbattlers.app.notifications.PushNotifications
 import com.backlogbattlers.app.util.applyThemeMode
 import kotlinx.coroutines.launch
@@ -21,6 +22,8 @@ class MainApplication : Application() {
         if (BuildConfig.DEBUG) enableStrictMode()
         ServiceLocator.init(this)
         PushNotifications.createChannels(this)
+        // lets the push service tell whether the app is on screen
+        AppVisibility.register(this)
 
         applyThemeMode(ServiceLocator.settingsRepository.getSettingsBlocking().themeMode)
 

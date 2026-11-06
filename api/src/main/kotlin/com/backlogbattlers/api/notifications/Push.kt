@@ -68,6 +68,19 @@ data class Push(
 }
 
 /**
+ * A made-up push of [type], for the debug route that lets a tester see each kind arrive on their
+ * own phone. The names and numbers are invented, so it never reveals anyone's data.
+ */
+fun samplePush(type: PushType): Push = when (type) {
+    PushType.FRIEND_REQUEST_RECEIVED -> Push(type, actorName = "Alex")
+    PushType.FRIEND_REQUEST_ACCEPTED -> Push(type, actorName = "Alex")
+    PushType.FRIEND_COMPLETED_GAME -> Push(type, actorName = "Alex", gameTitle = "Hades")
+    PushType.OVERTAKEN -> Push(type, actorName = "Alex")
+    PushType.ACHIEVEMENT_UNLOCKED -> Push(type, gameTitle = "Hades", achievementName = "Escaped the Underworld", count = 3)
+    PushType.SEASON_RESET -> Push(type, monthPeriod = "2026-12", lastRank = 2, lastPoints = 1240)
+}
+
+/**
  * Whether a user with these preferences wants [type]. [settings] is null until the app first
  * saves them; the app ships with every switch on, so no row means yes. [pushEnabled] is the
  * account-wide switch on Users, which turns everything off.

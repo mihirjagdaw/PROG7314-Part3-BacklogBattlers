@@ -11,7 +11,11 @@ import kotlinx.coroutines.runBlocking
 //------------------------------
 // receives pushes from Firebase Cloud Messaging. the API sends data messages only, so this runs
 // for every push, whether the app is open, in the background or closed, and builds the
-// notification itself in the user's language
+// notification itself in the user's language.
+// follows the Firebase Cloud Messaging guide for Android clients: a FirebaseMessagingService with
+// onNewToken and onMessageReceived, registered in the manifest
+// https://firebase.google.com/docs/cloud-messaging/android/client
+// https://firebase.google.com/docs/cloud-messaging/android/receive
 class PushMessagingService : FirebaseMessagingService() {
 
     //------------------------------
@@ -35,8 +39,8 @@ class PushMessagingService : FirebaseMessagingService() {
 
         val signedInUserId = ServiceLocator.tokenStorage.getUserId()
         val settings = runBlocking { ServiceLocator.settingsRepository.observeSettings().first() }
-        if (!push.shouldShow(signedInUserId, settings)) {
-            Log.i(TAG, "Not showing ${push.type}: switched off, or meant for another account")
+        if (!push.shouldShow(signedInUserId, settings, appOpen = AppVisibility.isOpen)) {
+            Log.i(TAG, "Not showing ${push.type}: switched off, meant for another account, or about your own action while the app is open")
             return
         }
         PushNotifications.show(applicationContext, push)

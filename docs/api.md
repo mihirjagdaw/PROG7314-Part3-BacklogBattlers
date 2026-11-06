@@ -234,11 +234,35 @@ The API sends these through Firebase Cloud Messaging to every phone the recipien
 
 Pushes are data-only messages: `type`, `userId` (the recipient), and then what that kind needs: `actorName` for the four about friends and rivals, plus `gameTitle` for `FRIEND_COMPLETED_GAME`; `gameTitle` (left out when the unlocks are spread over several games), `count` and `achievementName` (the rarest) for `ACHIEVEMENT_UNLOCKED`; `monthPeriod`, `lastRank` (left out when they scored nothing) and `lastPoints` for `SEASON_RESET`. The app writes the text itself in the user's language and drops a push meant for an account that is no longer signed in. Nothing is sent when the recipient switched that kind off, or when the account-wide `push_notifications_enabled` flag is off. A user who has never saved settings gets everything, because the app ships with every switch on. Tokens that FCM reports as gone are deleted.
 
-**Achievements.** An import tells the player about the unlocks it found: one push for each of up to three games, and past that a single push for all of them. They arrive only when an import runs (the Import button under Steam), because the API does not poll Steam by itself.
+**Achievements.** An import tells the player about the unlocks it found: one push for each of up to three games, and past that a single push for all of them. Ticking an achievement off in the app sends nothing, on purpose: the player did it themselves and is looking at it, and a push is for things that happen while they are away. For the same reason the app holds back this push while it is open (the import's result is already on screen), and shows it when the app is in the background or closed. This is decided on the phone, so the API still sends it. The other five kinds are caused by someone else or by the calendar, so the app shows them even while it is open. The API does not poll Steam by itself.
 
 **Season resets.** A background job checks every 10 minutes whether the competition month (South African time) has changed. When it has, every user with at least one registered phone gets one push saying how they finished the month before, then everyone starts from zero. Which months were announced is kept in the `season_announcements` table, so a restart or a second instance never sends one twice. The first time the job ever runs it only records the current month, because a season that began weeks ago is not news.
 
 Configure the sender with `FIREBASE_SERVICE_ACCOUNT_FILE` (path to the service-account JSON) or `FIREBASE_SERVICE_ACCOUNT_JSON` (the JSON itself). Without either, the API runs normally and only logs the pushes it would have sent.
+
+#### `POST /debug/push` (testing only)
+
+Sends test pushes to the signed-in user's own phones, so every kind can be seen arriving on demand, for example while recording the demo video. **The route does not exist (404) unless the setting `DEBUG_PUSH_ENABLED` is `true`**, and the API logs a warning at start-up while it is on. Needs `Authorization: Bearer <access token>`. It never sends to anyone else, the names and numbers are made up ("Alex", "Hades", rank 2 with 1,240 points), and it goes through the same checks as a real push, so a kind the user switched off in Settings is not sent.
+
+Request: `{"type": "SEASON_RESET"}` for one kind (any letter case), or `{"type": "ALL"}`, which is also the default for `{}`, for one of each of the six.
+
+Response `200`, how many of the caller's phones each push went to (`0` means that kind is switched off, or no phone is signed in):
+
+```json
+[
+  { "type": "FRIEND_REQUEST_RECEIVED", "phones": 1 },
+  { "type": "FRIEND_REQUEST_ACCEPTED", "phones": 1 },
+  { "type": "FRIEND_COMPLETED_GAME", "phones": 1 },
+  { "type": "OVERTAKEN", "phones": 1 },
+  { "type": "ACHIEVEMENT_UNLOCKED", "phones": 1 },
+  { "type": "SEASON_RESET", "phones": 1 }
+]
+```
+
+| Status | Body |
+|---|---|
+| 400 | `{"error":"type must be ALL or one of FRIEND_REQUEST_RECEIVED, ..."}` |
+| 401 | `{"error":"Sign in to send test pushes"}` |
 
 ### `GET /activity`
 
