@@ -33,7 +33,7 @@ import com.backlogbattlers.app.viewmodels.FriendsTab
 import com.backlogbattlers.app.viewmodels.FriendsViewModel
 import kotlinx.coroutines.launch
 
-// fragment displaying all friends, following (to do...) and incoming requests
+// fragment displaying all friends and incoming requests
 class FriendsFragment : Fragment() {
 
     private val viewModel: FriendsViewModel by viewModels()
@@ -61,7 +61,6 @@ class FriendsFragment : Fragment() {
         val etFriendSearch = view.findViewById<EditText>(R.id.et_friend_search)
 
         val btnTabAllFriends = view.findViewById<TextView>(R.id.btn_tab_all_friends)
-        val btnTabFollowing = view.findViewById<TextView>(R.id.btn_tab_following)
         val btnTabRequests = view.findViewById<TextView>(R.id.btn_tab_requests)
         val tvRequestsBadge = view.findViewById<TextView>(R.id.tv_requests_badge)
 
@@ -129,7 +128,6 @@ class FriendsFragment : Fragment() {
         })
 
         btnTabAllFriends.setOnClickListener { viewModel.selectTab(FriendsTab.ALL_FRIENDS) }
-        btnTabFollowing.setOnClickListener { viewModel.selectTab(FriendsTab.FOLLOWING) }
         btnTabRequests.setOnClickListener { viewModel.selectTab(FriendsTab.REQUESTS) }
 
         // a tapped friend request notification opens straight on the requests. the argument is
@@ -163,24 +161,12 @@ class FriendsFragment : Fragment() {
                         FriendsTab.ALL_FRIENDS -> {
                             btnTabAllFriends.setBackgroundResource(R.drawable.bg_pill_accent)
                             btnTabAllFriends.setTextColor(ContextCompat.getColor(requireContext(), R.color.page_background))
-                            btnTabFollowing.setBackgroundResource(R.drawable.bg_pill_outline)
-                            btnTabFollowing.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary))
-                            btnTabRequests.setBackgroundResource(R.drawable.bg_pill_outline)
-                            btnTabRequests.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary))
-                        }
-                        FriendsTab.FOLLOWING -> {
-                            btnTabAllFriends.setBackgroundResource(R.drawable.bg_pill_outline)
-                            btnTabAllFriends.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary))
-                            btnTabFollowing.setBackgroundResource(R.drawable.bg_pill_accent)
-                            btnTabFollowing.setTextColor(ContextCompat.getColor(requireContext(), R.color.page_background))
                             btnTabRequests.setBackgroundResource(R.drawable.bg_pill_outline)
                             btnTabRequests.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary))
                         }
                         FriendsTab.REQUESTS -> {
                             btnTabAllFriends.setBackgroundResource(R.drawable.bg_pill_outline)
                             btnTabAllFriends.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary))
-                            btnTabFollowing.setBackgroundResource(R.drawable.bg_pill_outline)
-                            btnTabFollowing.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary))
                             btnTabRequests.setBackgroundResource(R.drawable.bg_pill_accent)
                             btnTabRequests.setTextColor(ContextCompat.getColor(requireContext(), R.color.page_background))
                         }
@@ -205,17 +191,6 @@ class FriendsFragment : Fragment() {
                             } else {
                                 includeEmptyState.visibility = View.GONE
                             }
-                        }
-                        FriendsTab.FOLLOWING -> {
-                            rvFriends.visibility = View.VISIBLE
-                            rvRequests.visibility = View.GONE
-                            friendAdapter.submitList(emptyList())
-
-                            includeEmptyState.visibility = View.VISIBLE
-                            tvEmptyTitle.text = getString(R.string.following_empty_title)
-                            tvEmptyBody.text = getString(R.string.following_empty_body)
-                            btnShareInvite.visibility = View.GONE
-                            btnFindByUsername.visibility = View.GONE
                         }
                         FriendsTab.REQUESTS -> {
                             rvFriends.visibility = View.GONE

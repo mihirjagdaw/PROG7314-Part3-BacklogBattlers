@@ -118,7 +118,6 @@
 
     <!-- friends feature -->
     <string name="tab_all_friends">Alle vriende</string>
-    <string name="tab_following">Volg</string>
     <string name="tab_requests">Versoeke</string>
     <string name="reject">Weier</string>
     <string name="pending">Hangend</string>
@@ -130,8 +129,6 @@
     <string name="no_search_results_body">Probeer \'n ander naam</string>
     <string name="search_friends_prompt_title">Vind vriende volgens naam</string>
     <string name="search_friends_prompt_body">Tik op soek of druk enter wanneer jy gereed is</string>
-    <string name="following_empty_title">Volg is nog nie beskikbaar nie</string>
-    <string name="following_empty_body">Kom kyk weer sodra dit gebou is</string>
     <string name="no_friends_title_empty">Dis net jy vir eers</string>
     <string name="no_friends_body_empty">Almal op jou vriendelys word gerangskik volgens punte wat hierdie maand verdien is, en die ranglys begin op die 1ste weer van voor af.</string>
     <string name="share_invite_link">Deel uitnodigingskakel</string>

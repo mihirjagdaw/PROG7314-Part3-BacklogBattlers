@@ -19,8 +19,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-// which of the three tabs is currently selected
-enum class FriendsTab { ALL_FRIENDS, FOLLOWING, REQUESTS }
+// which of the two tabs is currently selected
+enum class FriendsTab { ALL_FRIENDS, REQUESTS }
 
 // everything the friends screen needs to render, for whichever tab is selected
 data class FriendsUiState(
@@ -36,7 +36,7 @@ data class FriendsUiState(
     val hasNoFriends: Boolean = false,
 )
 
-// viewmodel for the friends screen friend list, following, and incoming requests
+// viewmodel for the friends screen friend list and incoming requests
 class FriendsViewModel(
     private val friendsRepository: FriendsRepository = ServiceLocator.friendsRepository,
     private val authRepository: AuthRepository = ServiceLocator.authRepository,
