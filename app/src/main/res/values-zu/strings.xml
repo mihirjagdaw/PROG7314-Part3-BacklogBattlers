@@ -274,6 +274,10 @@
     <string name="biometric_lock_unavailable">Isigxivizo somunwe wakho noma ukukhiya isikrini akutholakali okwamanje. Ngena nge-Google esikhundleni salokho.</string>
     <string name="biometric_lock_retry">Zama futhi</string>
     <string name="biometric_lock_sign_in_again">Ngena futhi</string>
+    <string name="biometric_lock_changed">Izilungiselelo zakho zezigxivizo zeminwe noma zobuso ziguquliwe, ngakho ukuvula kuvaliwe ukuze i-akhawunti yakho ihlale ivikelekile. Ngena futhi ukuze uqhubeke.</string>
+    <string name="biometric_lock_not_verified">Asikwazanga ukuqinisekisa ukuthi bekuyinto wena. Zama futhi, noma ngena futhi.</string>
+    <string name="biometric_turn_off_title">Vala ukuvula ngezigxivizo zeminwe?</string>
+    <string name="biometric_turn_off_not_confirmed">Ukuvula ngezigxivizo zeminwe kuyaqhubeka kuvuliwe</string>
     <string name="cd_fingerprint_icon">Isithonjana sesigxivizo somunwe</string>
 
     <!-- help and support -->

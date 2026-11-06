@@ -48,6 +48,14 @@ class BiometricLockViewModel(
     }
 
     //------------------------------
+    // the prompt can't even be shown, or its answer can't be trusted: the screen stays locked and
+    // says why. never unlocks, so a phone that lost its fingerprint or screen lock fails closed
+    fun onCannotUnlock(reason: BiometricLockReason) {
+        _uiState.value = BiometricLockUiState.Locked(reason)
+        Log.w(TAG, "Staying locked: $reason")
+    }
+
+    //------------------------------
     // the scan (or the phone's PIN) matched, the caller can now navigate to home
     fun onAuthenticationSucceeded() {
         _uiState.value = BiometricLockUiState.Success

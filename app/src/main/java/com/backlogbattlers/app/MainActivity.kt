@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import android.widget.TextView
@@ -12,6 +13,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.os.bundleOf
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -23,6 +25,8 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.navOptions
 import androidx.navigation.ui.setupWithNavController
 import com.backlogbattlers.app.core.ServiceLocator
+import com.backlogbattlers.app.fragments.BiometricLockFragment
+import com.backlogbattlers.app.util.shouldRelock
 import com.backlogbattlers.app.data.repository.SyncBanner
 import com.backlogbattlers.app.notifications.NotificationPermission
 import com.backlogbattlers.app.notifications.PushNotifications
@@ -30,6 +34,7 @@ import com.backlogbattlers.app.notifications.PushType
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -39,6 +44,9 @@ class MainActivity : AppCompatActivity() {
     private val fullBleedDestinations = setOf(R.id.homeFragment)
     private var contentDrawsBehindStatusBar = false
     private var bannerVisible = false
+
+    // when the app last went out of sight (SystemClock.elapsedRealtime), null while it is in front
+    private var backgroundedAt: Long? = null
 
     // screens shown before the user is signed in and unlocked. a tapped notification waits until
     // the user is past them, then opens its screen
@@ -98,6 +106,8 @@ class MainActivity : AppCompatActivity() {
             when (destination.id) {
                 R.id.splashFragment,
                 R.id.loginFragment,
+                // no tab bar on the lock screen: its tabs would walk straight past the lock
+                R.id.biometricLockFragment,
                 R.id.settingsFragment,
                 R.id.editProfileFragment,
                 R.id.notificationSettingsFragment,
@@ -136,6 +146,44 @@ class MainActivity : AppCompatActivity() {
                 ) {
                     backToLogin(navController)
                 }
+            }
+        }
+    }
+
+    //------------------------------
+    // the app went out of sight: note when, so coming back can tell how long it was away.
+    // not for a rotation or a theme change, which recreate the activity in a blink
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) backgroundedAt = SystemClock.elapsedRealtime()
+    }
+
+    //------------------------------
+    // the app is back in front. after a minute or more away it locks again, when fingerprint unlock
+    // is on and the user is past the first unlock, so a phone left open on the table or handed to
+    // someone doesn't keep the app open. a notification tap that brought the app back waits behind
+    // the lock too (see openPendingPush)
+    override fun onStart() {
+        super.onStart()
+        val left = backgroundedAt ?: return
+        backgroundedAt = null
+        // the nav controller is not set up on the very first start
+        if (!::navController.isInitialized) return
+        val current = navController.currentDestination?.id ?: return
+        val now = SystemClock.elapsedRealtime()
+
+        lifecycleScope.launch {
+            val enabled = ServiceLocator.settingsRepository.observeSettings().first().biometricLoginEnabled
+            val relock = shouldRelock(
+                biometricEnabled = enabled,
+                alreadyLocked = current in beforeSignedIn,
+                backgroundedAt = left,
+                now = now,
+            )
+            // checked again: the user may have moved on while the setting was read
+            if (relock && navController.currentDestination?.id !in beforeSignedIn) {
+                Log.i(TAG, "Back after ${(now - left) / 1000}s in the background, locking again")
+                navController.navigate(R.id.biometricLockFragment, bundleOf(BiometricLockFragment.ARG_RELOCK to true))
             }
         }
     }
