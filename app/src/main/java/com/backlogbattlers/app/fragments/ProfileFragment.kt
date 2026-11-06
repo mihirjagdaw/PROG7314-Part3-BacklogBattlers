@@ -33,6 +33,7 @@ import com.backlogbattlers.app.util.daysSince
 import com.backlogbattlers.app.util.formatPoints
 import com.backlogbattlers.app.util.loadLandscapeArt
 import com.backlogbattlers.app.util.setVisible
+import com.backlogbattlers.app.util.updatedAgo
 import com.backlogbattlers.app.viewmodels.ProfileViewModel
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -47,7 +48,11 @@ import java.util.Locale
 // pencil opens edit profile and the gear opens settings
 class ProfileFragment : Fragment() {
 
-    private val viewModel: ProfileViewModel by viewModels()
+    // set when this is a friend's profile, opened from the friends list, the leaderboard or the feed; absent on
+    // the profile tab, which is the signed in user's own
+    private val friendId: String? get() = arguments?.getString(ARG_USER_ID)
+
+    private val viewModel: ProfileViewModel by viewModels { ProfileViewModel.factory(friendId) }
 
     //------------------------------
     // inflates the profile fragment layout
@@ -71,11 +76,20 @@ class ProfileFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        view.findViewById<View>(R.id.btn_edit_profile).setOnClickListener {
+        val viewingFriend = friendId != null
+        val editButton = view.findViewById<View>(R.id.btn_edit_profile)
+        val settingsButton = view.findViewById<View>(R.id.btn_settings)
+        val backButton = view.findViewById<View>(R.id.btn_profile_back)
+        // a friend's profile has no pencil or gear, which are about your own, and a back arrow to where it came from
+        editButton.setVisible(!viewingFriend)
+        settingsButton.setVisible(!viewingFriend)
+        backButton.setVisible(viewingFriend)
+        backButton.setOnClickListener { findNavController().navigateUp() }
+        editButton.setOnClickListener {
             Log.d(TAG, "Opening edit profile from the profile header")
             findNavController().navigate(R.id.action_profileFragment_to_editProfileFragment)
         }
-        view.findViewById<View>(R.id.btn_settings).setOnClickListener {
+        settingsButton.setOnClickListener {
             Log.d(TAG, "Opening settings from the profile header")
             findNavController().navigate(R.id.action_profileFragment_to_settingsFragment)
         }
@@ -107,16 +121,20 @@ class ProfileFragment : Fragment() {
         val errorText = view.findViewById<TextView>(R.id.tv_profile_error)
         val content = view.findViewById<View>(R.id.content_profile)
         val xpGroup = view.findViewById<View>(R.id.group_xp)
+        val savedLabel = view.findViewById<TextView>(R.id.tv_profile_saved)
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     swipe.isRefreshing = state.isRefreshing
 
-                    // the name comes from the account at once; before anyone is known the header stays blank
-                    val displayName = state.user?.displayName ?: state.profile?.displayName.orEmpty()
-                    name.text = displayName
-                    avatar.bindProfileAvatar(state.customization.pictureId, displayName)
+                    // your own name comes from the account at once; before anyone is known the header stays blank
+                    name.text = state.displayName
+                    avatar.bindProfileAvatar(state.pictureId, state.displayName)
+
+                    // while what is shown is the copy saved on this phone, say when the server last answered
+                    savedLabel.setVisible(state.savedAt != null)
+                    state.savedAt?.let { savedLabel.text = getString(R.string.profile_saved_copy, requireContext().updatedAgo(it)) }
 
                     progress.setVisible(state.isLoading)
                     errorCard.setVisible(state.errorMessage != null)
@@ -148,10 +166,18 @@ class ProfileFragment : Fragment() {
         view.findViewById<TextView>(R.id.tv_xp_progress).text =
             getString(R.string.profile_xp_progress, formatPoints(profile.xpIntoLevel), formatPoints(profile.xpForNextLevel))
 
-        view.findViewById<TextView>(R.id.tv_badges_earned).text =
-            getString(R.string.profile_badges_earned, profile.badgesEarned, profile.badges.size)
+        // a friend who keeps their badges or showcase private: the section says so instead of looking empty
+        view.findViewById<TextView>(R.id.tv_badges_earned).apply {
+            setVisible(!profile.badgesHidden)
+            text = getString(R.string.profile_badges_earned, profile.badgesEarned, profile.badges.size)
+        }
+        view.findViewById<View>(R.id.btn_badges_see_all).setVisible(!profile.badgesHidden)
+        view.findViewById<View>(R.id.rv_badges).setVisible(!profile.badgesHidden)
+        view.findViewById<View>(R.id.tv_badges_hidden).setVisible(profile.badgesHidden)
         badgeAdapter.submitList(sortedBadges(profile).take(BADGE_PREVIEW))
 
+        view.findViewById<View>(R.id.rv_showcase).setVisible(!profile.showcaseHidden)
+        view.findViewById<View>(R.id.tv_showcase_hidden).setVisible(profile.showcaseHidden)
         showcaseAdapter.achievements = profile.rarestAchievements
 
         bindRecentActivity(view, profile)
@@ -247,12 +273,15 @@ class ProfileFragment : Fragment() {
     private fun percentText(percent: Double): String =
         if (percent % 1.0 == 0.0) percent.toInt().toString() else String.format(Locale.getDefault(), "%.1f", percent)
 
-    private companion object {
-        const val TAG = "ProfileFragment"
-        const val BADGE_COLUMNS = 4
+    companion object {
+        private const val TAG = "ProfileFragment"
+        private const val BADGE_COLUMNS = 4
+
+        // the navigation argument holding the friend whose profile this is
+        const val ARG_USER_ID = "userId"
 
         // the badges the card shows before See all
-        const val BADGE_PREVIEW = 4
+        private const val BADGE_PREVIEW = 4
     }
 }
 //------------------------------EOF------------------------------\

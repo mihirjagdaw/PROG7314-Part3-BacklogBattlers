@@ -26,6 +26,8 @@ import com.backlogbattlers.app.util.setVisible
 // since tied scores share a rank there (see LeaderboardEntry).
 class LeaderboardAdapter(
     var currentUserId: String? = null,
+    // a tap on a row, which opens that player's profile
+    private val onClick: ((LeaderboardEntry) -> Unit)? = null,
 ) : ListAdapter<LeaderboardEntry, LeaderboardAdapter.ViewHolder>(DiffCallback) {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -76,6 +78,7 @@ class LeaderboardAdapter(
         holder.ivAvatarPicture.showProfilePicture(entry.pictureId)
 
         holder.tvFriendName.text = entry.displayName
+        holder.itemView.setOnClickListener(onClick?.let { tapped -> View.OnClickListener { tapped(entry) } })
 
         val isSelf = entry.userId == currentUserId
         // this if statement shows the (You) suffix and applies a highlighted card background for the signed in user's own row

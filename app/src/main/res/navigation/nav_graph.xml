@@ -12,6 +12,11 @@
         app:popUpTo="@id/nav_graph"
         app:popUpToInclusive="true" />
 
+    <!-- a friend's profile, from the friends list, the leaderboard or the activity feed. takes the friend's user id -->
+    <action
+        android:id="@+id/action_global_friendProfileFragment"
+        app:destination="@id/friendProfileFragment" />
+
     <fragment
         android:id="@+id/splashFragment"
         android:name="com.backlogbattlers.app.fragments.SplashFragment"
@@ -134,6 +139,21 @@
     </fragment>
 
     <!-- drill downs, these hide the bottom navigation while they are open -->
+
+    <!-- the same screen as the profile tab, for a friend: it is told whose profile to show, and goes back to where it was opened from -->
+    <fragment
+        android:id="@+id/friendProfileFragment"
+        android:name="com.backlogbattlers.app.fragments.ProfileFragment"
+        android:label="Friend Profile"
+        tools:layout="@layout/fragment_profile">
+        <argument
+            android:name="userId"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_friendProfileFragment_to_gameDetailFragment"
+            app:destination="@id/gameDetailFragment" />
+    </fragment>
+
     <fragment
         android:id="@+id/gameDetailFragment"
         android:name="com.backlogbattlers.app.fragments.GameDetailFragment"
