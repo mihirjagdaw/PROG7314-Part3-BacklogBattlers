@@ -52,6 +52,8 @@
   </tr>
 </table>
 
+# A note on font:
+**Please note that the font which appears on the video demonstration as well as all application screenshots does not genuinly reflect the font utilised by our application, it is a custom font applied to the phone's system settings (Dylan's phone) used for recording, to view the genuine fonts utilised, please either run the built APK, or follow the build process to run on the emulator in Android Studios. Thanks for your understanding.**
 
 ##  Table of Contents
 <ol>
