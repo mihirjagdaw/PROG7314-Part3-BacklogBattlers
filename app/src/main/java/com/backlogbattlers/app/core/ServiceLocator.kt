@@ -42,6 +42,8 @@ import com.backlogbattlers.app.data.repository.SettingsRepository
 import com.backlogbattlers.app.data.repository.SteamAccountRepository
 import com.backlogbattlers.app.data.repository.SteamAccountRepositoryImpl
 import com.backlogbattlers.app.data.repository.SettingsRepositoryImpl
+import com.backlogbattlers.app.data.repository.ResponseCache
+import com.backlogbattlers.app.data.repository.RoomResponseCache
 import com.backlogbattlers.app.data.repository.SettingsSync
 import com.backlogbattlers.app.data.repository.SyncCoordinator
 import com.backlogbattlers.app.notifications.PushTokenRegistrar
@@ -157,6 +159,11 @@ object ServiceLocator {
         ProfileApi(httpClient = httpClient, baseUrl = BuildConfig.API_BASE_URL, tokens = accessTokenSource)
     }
 
+    // the last server answers the profile and the activity feed showed, kept per account so those screens open offline
+    val responseCache: ResponseCache by lazy {
+        RoomResponseCache(database.cachedResponseDao(), currentUserId = { tokenStorage.getUserId() })
+    }
+
     val profileRepository: ProfileRepository by lazy {
         ProfileRepositoryImpl(
             profileApi,
@@ -164,6 +171,7 @@ object ServiceLocator {
             artFor = { gameId ->
                 gameRepository.getGame(gameId)?.let { game -> game.landscapeArtUrls + listOfNotNull(game.coverImageUrl) }.orEmpty()
             },
+            cache = responseCache,
         )
     }
 
@@ -180,7 +188,7 @@ object ServiceLocator {
     }
 
     val activityRepository: ActivityRepository by lazy {
-        ActivityRepositoryImpl(activityApi)
+        ActivityRepositoryImpl(activityApi, cache = responseCache)
     }
 
     val leaderboardApi: LeaderboardApi by lazy {

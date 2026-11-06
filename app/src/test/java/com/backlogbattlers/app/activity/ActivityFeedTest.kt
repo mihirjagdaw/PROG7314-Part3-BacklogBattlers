@@ -6,11 +6,16 @@ import com.backlogbattlers.app.data.remote.SessionExpiredException
 import com.backlogbattlers.app.data.repository.AccessTokenSource
 import com.backlogbattlers.app.data.repository.ActivityRepository
 import com.backlogbattlers.app.data.repository.ActivityRepositoryImpl
+import com.backlogbattlers.app.data.repository.ResponseCache
+import com.backlogbattlers.app.data.repository.SavedResponse
 import com.backlogbattlers.app.domain.model.ActivityEvent
 import com.backlogbattlers.app.domain.model.ActivityPage
 import com.backlogbattlers.app.domain.model.ActivityType
+import com.backlogbattlers.app.domain.model.CachedActivity
 import com.backlogbattlers.app.viewmodels.ActivityRow
+import com.backlogbattlers.app.viewmodels.ActivityTap
 import com.backlogbattlers.app.viewmodels.ActivityViewModel
+import com.backlogbattlers.app.viewmodels.activityTapFor
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -154,6 +159,19 @@ class ActivityFeedTest {
             failure?.let { throw it }
             return pages[before] ?: ActivityPage(emptyList(), null)
         }
+
+        // the newest page saved for offline, if there is one
+        var cached: CachedActivity? = null
+
+        override suspend fun cachedNewest(): CachedActivity? = cached
+    }
+
+    // a ResponseCache that keeps everything in memory, for the repository's offline copy
+    private class InMemoryResponseCache : ResponseCache {
+        val saved = mutableMapOf<String, SavedResponse>()
+        override suspend fun load(key: String): SavedResponse? = saved[key]
+        override suspend fun save(key: String, json: String, savedAt: Long) { saved[key] = SavedResponse(json, savedAt) }
+        override suspend fun clear(userId: String) { saved.clear() }
     }
 
     private val fake = FakeActivityRepository()
@@ -225,6 +243,151 @@ class ActivityFeedTest {
 
         assertNull(vm.uiState.value.errorMessage)
         assertEquals(2, vm.uiState.value.rows.size)
+    }
+
+    // ---- the copy saved for offline ----
+
+    @Test
+    fun `a saved feed is shown when the server cannot be reached, with when it was saved`() {
+        fake.cached = CachedActivity(ActivityPage(listOf(event("a", at("2026-11-05", "09:00:00"))), nextBefore = 100), savedAt = 5_000L)
+        fake.failure = java.io.IOException("offline")
+
+        val state = viewModel().uiState.value
+
+        assertEquals(listOf("a"), state.rows.filterIsInstance<ActivityRow.Event>().map { it.event.eventId })
+        assertEquals(5_000L, state.savedAt)
+        assertNull(state.errorMessage) // there is something to show, so it is not an error screen
+        assertFalse(state.isLoading)
+        assertEquals(R.string.activity_error_load, state.message) // a toast says it could not refresh
+    }
+
+    @Test
+    fun `the server's feed replaces the saved one and the saved label goes`() {
+        fake.cached = CachedActivity(ActivityPage(listOf(event("old", at("2026-11-04", "09:00:00"))), null), savedAt = 5_000L)
+        fake.pages[null] = ActivityPage(listOf(event("new", at("2026-11-05", "09:00:00"))), null)
+
+        val state = viewModel().uiState.value
+
+        assertEquals(listOf("new"), state.rows.filterIsInstance<ActivityRow.Event>().map { it.event.eventId })
+        assertNull(state.savedAt)
+    }
+
+    @Test
+    fun `a feed the server says is empty is not filled back in from the saved one`() {
+        fake.cached = CachedActivity(ActivityPage(listOf(event("old", at("2026-11-04", "09:00:00"))), null), savedAt = 5_000L)
+
+        val state = viewModel().uiState.value
+
+        assertTrue(state.isEmpty)
+        assertNull(state.savedAt)
+    }
+
+    @Test
+    fun `a saved feed has no more pages to scroll to`() {
+        fake.cached = CachedActivity(ActivityPage(listOf(event("a", at("2026-11-05", "09:00:00"))), nextBefore = 100), savedAt = 5_000L)
+        fake.failure = java.io.IOException("offline")
+        val vm = viewModel()
+
+        vm.loadMore()
+
+        assertFalse(vm.uiState.value.hasMore)
+        assertEquals(listOf<Long?>(null), fake.asked) // only the newest page was asked for
+    }
+
+    @Test
+    fun `with no saved feed and no connection the error screen shows`() {
+        fake.failure = java.io.IOException("offline")
+
+        val state = viewModel().uiState.value
+
+        assertEquals(R.string.activity_error_load, state.errorMessage)
+        assertNull(state.savedAt)
+    }
+
+    @Test
+    fun `pulling to refresh on a saved feed brings the server's one once it answers`() {
+        fake.cached = CachedActivity(ActivityPage(listOf(event("old", at("2026-11-04", "09:00:00"))), null), savedAt = 5_000L)
+        fake.failure = java.io.IOException("offline")
+        val vm = viewModel()
+        assertEquals(5_000L, vm.uiState.value.savedAt)
+
+        fake.failure = null
+        fake.pages[null] = ActivityPage(listOf(event("new", at("2026-11-05", "09:00:00"))), null)
+        vm.refresh(pulled = true)
+
+        assertEquals(listOf("new"), vm.uiState.value.rows.filterIsInstance<ActivityRow.Event>().map { it.event.eventId })
+        assertNull(vm.uiState.value.savedAt)
+    }
+
+    @Test
+    fun `the repository keeps the newest page for offline, and only the newest`() = runBlocking {
+        val cache = InMemoryResponseCache()
+        val cached = ActivityRepositoryImpl(api, cache, clock = { 7_000L })
+
+        cached.getActivity(before = 123L)
+        assertTrue(cache.saved.isEmpty()) // an older page is not worth keeping
+
+        cached.getActivity()
+        val saved = cached.cachedNewest()
+        assertEquals(7_000L, saved?.savedAt)
+        // read back the way a fresh page is: the unknown kind is left out, the paging is kept
+        assertEquals(listOf("e1", "e3"), saved?.page?.events?.map { it.eventId })
+        assertEquals(1762320000000, saved?.page?.nextBefore)
+    }
+
+    @Test
+    fun `a saved feed that can no longer be read counts as none`() = runBlocking {
+        val cache = InMemoryResponseCache()
+        cache.saved["activity:newest"] = SavedResponse("this is not json", 1L)
+
+        assertNull(ActivityRepositoryImpl(api, cache).cachedNewest())
+    }
+
+    @Test
+    fun `without a cache nothing is saved and nothing is read`() = runBlocking {
+        val plain = ActivityRepositoryImpl(api)
+
+        plain.getActivity()
+
+        assertNull(plain.cachedNewest())
+    }
+
+    // ---- where tapping a row goes ----
+
+    @Test
+    fun `a completion opens its game, or the player when it has none`() {
+        assertEquals(ActivityTap.Game(1), activityTapFor(event("a", 1L, actor = "u2"), selfUserId = "me"))
+        assertEquals(ActivityTap.Profile("u2"), activityTapFor(event("a", 1L, actor = "u2").copy(gameId = null), selfUserId = "me"))
+    }
+
+    @Test
+    fun `unlocked achievements open the player's profile`() {
+        val unlocked = event("a", 1L, actor = "u2", type = ActivityType.ACHIEVEMENT_UNLOCKED)
+
+        assertEquals(ActivityTap.Profile("u2"), activityTapFor(unlocked, selfUserId = "me"))
+        assertEquals(ActivityTap.Profile("me"), activityTapFor(unlocked.copy(actorId = "me"), selfUserId = "me")) // your own: the profile tab
+    }
+
+    @Test
+    fun `a new friendship or a passed rank opens the other person in it`() {
+        val added = event("a", 1L, actor = "u2", type = ActivityType.FRIEND_ADDED).copy(subjectId = "u3")
+        val passed = event("b", 1L, actor = "u2", type = ActivityType.RANK_PASSED).copy(subjectId = "u3")
+
+        assertEquals(ActivityTap.Profile("u2"), activityTapFor(added, selfUserId = "me"))
+        assertEquals(ActivityTap.Profile("u2"), activityTapFor(passed, selfUserId = "me"))
+        // when you did it, the other person is the subject, not yourself
+        assertEquals(ActivityTap.Profile("u3"), activityTapFor(added.copy(actorId = "me"), selfUserId = "me"))
+        assertEquals(ActivityTap.Profile("u3"), activityTapFor(passed.copy(actorId = "me"), selfUserId = "me"))
+    }
+
+    @Test
+    fun `an event that names nobody to open goes nowhere`() {
+        val added = event("a", 1L, actor = "me", type = ActivityType.FRIEND_ADDED) // subject missing
+        val blank = added.copy(subjectId = " ")
+
+        assertEquals(ActivityTap.None, activityTapFor(added, selfUserId = "me"))
+        assertEquals(ActivityTap.None, activityTapFor(blank, selfUserId = "me"))
+        assertEquals(ActivityTap.None, activityTapFor(event("c", 1L, type = ActivityType.UNKNOWN), selfUserId = "me"))
     }
 
     @Test

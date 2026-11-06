@@ -9,6 +9,7 @@ import com.backlogbattlers.app.core.ServiceLocator
 import com.backlogbattlers.app.data.remote.SessionExpiredException
 import com.backlogbattlers.app.data.repository.ActivityRepository
 import com.backlogbattlers.app.domain.model.ActivityEvent
+import com.backlogbattlers.app.domain.model.ActivityType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +38,9 @@ data class ActivityUiState(
     // the next, older page is being fetched at the bottom of the list
     val isLoadingMore: Boolean = false,
     val hasMore: Boolean = false,
+    // epoch milliseconds the server last answered, while the feed on screen is the copy saved on this phone
+    // (offline, or the server is not answering yet). null once the feed is fresh from the server
+    val savedAt: Long? = null,
     // a message from strings.xml shown in place of the feed, when there is nothing else to show
     @StringRes val errorMessage: Int? = null,
     // a message from strings.xml for the screen to show once (a refresh or next page failed, with a feed already on screen)
@@ -61,8 +65,37 @@ class ActivityViewModel(
     private var nextBefore: Long? = null
     private var loadJob: Job? = null
 
+    // the server has answered at least once, so a saved copy must not replace what it said
+    private var serverAnswered = false
+
     init {
+        showSavedCopy()
         refresh()
+    }
+
+    //------------------------------
+    // puts the newest page saved by the last successful load on screen straight away, so the feed is not
+    // empty while the server is asked, and is still there when it can't be reached. a feed that has already
+    // arrived is never replaced by it. a saved copy has no further pages: older events need the connection
+    private fun showSavedCopy() {
+        viewModelScope.launch {
+            val saved = try {
+                repository.cachedNewest()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "The saved activity feed could not be read", e)
+                null
+            } ?: return@launch
+            // the server's answer may have got here first (even an empty one), and it wins
+            if (events.isNotEmpty() || serverAnswered) return@launch
+            events = saved.page.events
+            nextBefore = null
+            val self = runCatching { selfUserId() }.getOrNull()
+            _uiState.update {
+                it.copy(rows = buildRows(events, zone), selfUserId = self ?: it.selfUserId, isLoading = false, hasMore = false, savedAt = saved.savedAt, errorMessage = null)
+            }
+        }
     }
 
     //------------------------------
@@ -79,6 +112,7 @@ class ActivityViewModel(
                 Log.d(TAG, "Loaded ${page.events.size} events, ${if (page.nextBefore != null) "more" else "no more"} after them")
                 events = page.events
                 nextBefore = page.nextBefore
+                serverAnswered = true
                 val self = runCatching { selfUserId() }.getOrNull()
                 _uiState.update {
                     it.copy(
@@ -87,6 +121,7 @@ class ActivityViewModel(
                         isLoading = false,
                         isRefreshing = false,
                         hasMore = nextBefore != null,
+                        savedAt = null,
                     )
                 }
             } catch (e: CancellationException) {
@@ -146,6 +181,34 @@ class ActivityViewModel(
     private companion object {
         const val TAG = "ActivityViewModel"
     }
+}
+
+//------------------------------
+// where tapping a feed row goes
+sealed interface ActivityTap {
+    // the game a completion was for
+    data class Game(val gameId: Int) : ActivityTap
+
+    // a person's profile (the signed in user's own profile tab, if it is them)
+    data class Profile(val userId: String) : ActivityTap
+
+    // nowhere: an event this version does not know, or one that names nobody to open
+    data object None : ActivityTap
+}
+
+// what tapping [event] opens, given who is signed in [selfUserId]:
+//  - a completion opens the game, or the player if the event has no game
+//  - unlocked achievements open the player's profile, where the recent activity lists them
+//  - a new friendship or a passed rank opens the other person in it: the actor, or the subject when the
+//    actor is the signed in user, so tapping your own row opens the friend you made and not yourself
+fun activityTapFor(event: ActivityEvent, selfUserId: String?): ActivityTap = when (event.type) {
+    ActivityType.GAME_COMPLETED -> event.gameId?.let { ActivityTap.Game(it) } ?: ActivityTap.Profile(event.actorId)
+    ActivityType.ACHIEVEMENT_UNLOCKED -> ActivityTap.Profile(event.actorId)
+    ActivityType.FRIEND_ADDED, ActivityType.RANK_PASSED -> {
+        val other = if (event.actorId == selfUserId) event.subjectId else event.actorId
+        if (other.isNullOrBlank()) ActivityTap.None else ActivityTap.Profile(other)
+    }
+    ActivityType.UNKNOWN -> ActivityTap.None
 }
 
 //------------------------------
