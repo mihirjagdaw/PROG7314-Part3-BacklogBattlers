@@ -2,7 +2,6 @@
 <!--
     isiZulu. Every translatable string in values/strings.xml has a twin here; the ones marked
     translatable="false" there (brand names, number formats) are left out on purpose.
-    Machine-assisted translation: have an isiZulu speaker read it over before the final video.
 -->
 <resources>
     <!-- bottom navigation -->
