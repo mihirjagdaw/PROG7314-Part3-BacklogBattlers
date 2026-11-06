@@ -103,6 +103,45 @@ class BiometricLockViewModelTest {
 
     @Test
     //------------------------------
+    // verifies a phone that can't unlock keeps the screen locked and says why, without signing out
+    fun `a phone that cannot unlock stays locked with the reason`() = runTest {
+        val fakeAuth = FakeAuthRepository()
+        val viewModel = BiometricLockViewModel(fakeAuth, FakeSettingsRepository())
+
+        viewModel.onCannotUnlock(BiometricLockReason.UNAVAILABLE)
+
+        assertFalse(fakeAuth.signOutCalled)
+        assertEquals(BiometricLockUiState.Locked(BiometricLockReason.UNAVAILABLE), viewModel.uiState.value)
+    }
+
+    @Test
+    //------------------------------
+    // verifies a changed fingerprint, or an unconfirmed unlock, never counts as success
+    fun `a changed fingerprint or an unconfirmed unlock does not unlock`() = runTest {
+        val viewModel = BiometricLockViewModel(FakeAuthRepository(), FakeSettingsRepository())
+
+        viewModel.onCannotUnlock(BiometricLockReason.CHANGED)
+        assertEquals(BiometricLockUiState.Locked(BiometricLockReason.CHANGED), viewModel.uiState.value)
+
+        viewModel.onCannotUnlock(BiometricLockReason.NOT_VERIFIED)
+        assertEquals(BiometricLockUiState.Locked(BiometricLockReason.NOT_VERIFIED), viewModel.uiState.value)
+    }
+
+    @Test
+    //------------------------------
+    // verifies a locked screen can still be unlocked by trying again once the phone can
+    fun `a locked screen unlocks when a retry succeeds`() = runTest {
+        val viewModel = BiometricLockViewModel(FakeAuthRepository(), FakeSettingsRepository())
+        viewModel.onCannotUnlock(BiometricLockReason.UNAVAILABLE)
+
+        viewModel.onAuthenticationStarted()
+        viewModel.onAuthenticationSucceeded()
+
+        assertEquals(BiometricLockUiState.Success, viewModel.uiState.value)
+    }
+
+    @Test
+    //------------------------------
     // verifies choosing sign in again ends the session but leaves fingerprint unlock on
     fun `signing in again signs out and keeps fingerprint unlock on`() = runTest {
         val fakeAuth = FakeAuthRepository()

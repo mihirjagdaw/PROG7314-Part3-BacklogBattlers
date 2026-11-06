@@ -62,11 +62,47 @@ class AndroidBiometricAvailabilityChecker(
 }
 
 //------------------------------
-// decides whether the biometric lock screen should be shown at all, given the
-fun shouldRequireBiometricUnlock(biometricEnabled: Boolean, availability: BiometricAvailability): Boolean {
+// decides whether the lock screen stands between the user and the app. it does whenever the user
+// turned the lock on, whatever the phone can do right now: the lock fails closed. a phone that lost
+// its fingerprint or screen lock does not let the app open unlocked, the lock screen explains and
+// offers to sign in again instead (see lockReasonForAvailability)
+fun shouldRequireBiometricUnlock(biometricEnabled: Boolean): Boolean = biometricEnabled
 
-    // this statement returns true only when biometric is enabled in settings and hardware is ready
-    return biometricEnabled && availability == BiometricAvailability.Available
+//------------------------------
+// why the phone can't unlock right now, or null when it can. what the lock screen says when the
+// lock is on but the sensor or the screen lock has gone
+fun lockReasonForAvailability(availability: BiometricAvailability): BiometricLockReason? = when (availability) {
+    BiometricAvailability.Available -> null
+    BiometricAvailability.NoHardware,
+    BiometricAvailability.NotEnrolled,
+    BiometricAvailability.Unavailable -> BiometricLockReason.UNAVAILABLE
+}
+
+// how long the app can sit in the background before it locks again
+const val RELOCK_AFTER_MILLIS = 60_000L
+
+//------------------------------
+// whether coming back to the app should lock it again: the lock is on, the user is past the first
+// unlock, and the app was out of sight for at least [timeoutMillis]. times are from the same
+// monotonic clock (SystemClock.elapsedRealtime), so changing the phone's clock can't skip the lock.
+// [backgroundedAt] is null when the app was never in the background since it was unlocked
+fun shouldRelock(
+    biometricEnabled: Boolean,
+    alreadyLocked: Boolean,
+    backgroundedAt: Long?,
+    now: Long,
+    timeoutMillis: Long = RELOCK_AFTER_MILLIS,
+): Boolean {
+    if (!biometricEnabled || alreadyLocked || backgroundedAt == null) return false
+    return now - backgroundedAt >= timeoutMillis
+}
+
+//------------------------------
+// whether turning the lock off must be confirmed with a fingerprint, face or screen lock first, so
+// someone holding an unlocked phone can't just switch it off. a phone that can't unlock at all
+// (the screen lock was removed) has nothing to confirm with, and must not be stuck with the lock on
+fun shouldConfirmBeforeTurningOff(availability: BiometricAvailability): Boolean {
+    return availability == BiometricAvailability.Available
 }
 
 //------------------------------
@@ -91,6 +127,14 @@ enum class BiometricLockReason {
 
     // the sensor or screen lock stopped being available, e.g. the fingerprint was removed
     UNAVAILABLE,
+
+    // a fingerprint or face was added or removed since the lock was turned on, which invalidates the
+    // lock's key. anyone who could add a fingerprint could have been someone else, so the only way
+    // on is to sign in again
+    CHANGED,
+
+    // the prompt said yes but the lock's key did not confirm it, so the unlock is not trusted
+    NOT_VERIFIED,
 }
 
 // maps the prompt's error code onto a reason the lock screen can explain

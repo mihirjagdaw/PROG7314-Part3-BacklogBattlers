@@ -44,10 +44,11 @@ class SplashFragment : Fragment() {
             // this if statement only looks at biometric state once a session already exist
             if (currentUser != null) {
                 val settings = ServiceLocator.settingsRepository.observeSettings().first()
-                val availability = ServiceLocator.biometricAvailabilityChecker.check()
 
-                // this if statement decides between the fingerprint gate and going straight
-                if (shouldRequireBiometricUnlock(settings.biometricLoginEnabled, availability)) {
+                // this if statement decides between the fingerprint gate and going straight. the gate
+                // closes whenever the lock is on, even if the phone can no longer unlock: the lock screen
+                // then says so and offers to sign in again, instead of letting the app open unprotected
+                if (shouldRequireBiometricUnlock(settings.biometricLoginEnabled)) {
                     Log.i(TAG, "Signed in with the fingerprint lock on, asking to unlock")
                     findNavController().navigate(R.id.action_splashFragment_to_biometricLockFragment)
                 } else {

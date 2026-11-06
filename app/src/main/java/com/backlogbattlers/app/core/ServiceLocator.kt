@@ -47,6 +47,7 @@ import com.backlogbattlers.app.data.repository.SyncCoordinator
 import com.backlogbattlers.app.notifications.PushTokenRegistrar
 import com.backlogbattlers.app.util.AndroidBiometricAvailabilityChecker
 import com.backlogbattlers.app.util.BiometricAvailabilityChecker
+import com.backlogbattlers.app.util.UnlockKey
 import com.backlogbattlers.app.util.RequestIds
 import com.backlogbattlers.app.util.applyLanguage
 import com.backlogbattlers.app.util.applyThemeMode
@@ -303,6 +304,9 @@ object ServiceLocator {
         val context = applicationContext ?: error("ServiceLocator must be initialized with context before accessing biometricAvailabilityChecker")
         AndroidBiometricAvailabilityChecker(context)
     }
+
+    // the keystore key the lock screen's prompt is tied to
+    val unlockKey: UnlockKey by lazy { UnlockKey() }
 
     //------------------------------
     // initializes the ServiceLocator with the application context
