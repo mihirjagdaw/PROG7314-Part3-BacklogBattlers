@@ -439,7 +439,7 @@ We prepared Backlog Battlers for the Google Play Store but did not publish it as
 
 ## Video Demonstration
 
-[Video Demonstration](https://www.youtube.com/watch?v=JaLRT3SDI74) Still to Update!
+Video Demonstration: https://youtu.be/W1bKa1cO-hw
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
