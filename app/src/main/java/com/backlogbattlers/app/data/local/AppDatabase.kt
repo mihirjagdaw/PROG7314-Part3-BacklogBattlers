@@ -8,9 +8,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.backlogbattlers.app.data.local.dao.CachedGameDao
+import com.backlogbattlers.app.data.local.dao.CachedResponseDao
 import com.backlogbattlers.app.data.local.dao.LibraryEntryDao
 import com.backlogbattlers.app.data.local.dao.UserDao
 import com.backlogbattlers.app.data.local.entity.CachedGameEntity
+import com.backlogbattlers.app.data.local.entity.CachedResponseEntity
 import com.backlogbattlers.app.data.local.entity.LibraryEntryEntity
 import com.backlogbattlers.app.data.local.entity.UserEntity
 
@@ -23,11 +25,12 @@ private const val TAG = "AppDatabase"
         UserEntity::class,
         CachedGameEntity::class,
         LibraryEntryEntity::class,
+        CachedResponseEntity::class,
     ],
     // !!!changing an entity? increment the version AND add a Migration below (see MIGRATION_4_5).
     // from version 4 on the database is migrated, not wiped, so library changes that have not
     // synced yet survive an app update. a version bump with no migration now crashes on purpose
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -40,6 +43,9 @@ abstract class AppDatabase : RoomDatabase() {
 
     // returns the LibraryEntryDao instance
     abstract fun libraryEntryDao(): LibraryEntryDao
+
+    // returns the CachedResponseDao instance
+    abstract fun cachedResponseDao(): CachedResponseDao
 
     companion object {
 
@@ -55,7 +61,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "backlog_battlers.db",
                 )
-                    .addMigrations(Migration4To5(currentUserId), MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(Migration4To5(currentUserId), MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     // the Part 2 builds (versions 1-3) only ever held test data, so those are still wiped
                     .fallbackToDestructiveMigrationFrom(true, 1, 2, 3)
                     .build()
@@ -113,6 +119,20 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `library_entries` ADD COLUMN `verifiedAchievementIds` TEXT NOT NULL DEFAULT ''")
         Log.i(TAG, "Database 7 -> 8: library entries can now hold their confirmed achievements")
+    }
+}
+
+//------------------------------
+// version 8 -> 9: the profile and the newest page of the activity feed are saved as the server last
+// answered them, per account, so those screens open offline with a "last updated" label. nothing
+// exists to carry over: the first time each screen loads online it is saved
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `cached_responses` (`viewerId` TEXT NOT NULL, `key` TEXT NOT NULL, " +
+                "`json` TEXT NOT NULL, `savedAt` INTEGER NOT NULL, PRIMARY KEY(`viewerId`, `key`))",
+        )
+        Log.i(TAG, "Database 8 -> 9: the profile and the activity feed can now be kept for offline")
     }
 }
 //------------------------------EOF------------------------------\\

@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.backlogbattlers.app.data.local.entity.CachedGameEntity
+import com.backlogbattlers.app.data.local.entity.CachedResponseEntity
 import com.backlogbattlers.app.data.local.entity.LibraryEntryEntity
 import com.backlogbattlers.app.data.local.entity.UserEntity
 import kotlinx.coroutines.flow.Flow
@@ -105,5 +106,23 @@ interface LibraryEntryDao {
     // deletes every library entry belonging to one account, when that account is deleted
     @Query("DELETE FROM library_entries WHERE userId = :userId")
     suspend fun clear(userId: String)
+}
+
+//------------------------------
+// database access for CachedResponseEntity: the last server answer a screen showed, per account
+@Dao
+interface CachedResponseDao {
+
+    // the saved answer for [key] that [viewerId] last got, or null when there is none
+    @Query("SELECT * FROM cached_responses WHERE viewerId = :viewerId AND `key` = :key LIMIT 1")
+    suspend fun get(viewerId: String, key: String): CachedResponseEntity?
+
+    // saves an answer, replacing the one saved for the same account and key
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(response: CachedResponseEntity)
+
+    // forgets everything saved for one account, when it is deleted or signs out for good
+    @Query("DELETE FROM cached_responses WHERE viewerId = :viewerId")
+    suspend fun clear(viewerId: String)
 }
 //------------------------------EOF------------------------------\\
