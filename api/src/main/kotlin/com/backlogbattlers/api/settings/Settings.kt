@@ -1,6 +1,7 @@
 package com.backlogbattlers.api.settings
 
 import com.backlogbattlers.api.db.Platform
+import com.backlogbattlers.api.db.ProfileVisibilities
 import com.backlogbattlers.api.db.UserSettings
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -35,9 +36,25 @@ data class SettingsDto(
     val rankChangeNotifications: Boolean,
     val seasonResetNotifications: Boolean,
     val friendActivityNotifications: Boolean,
+    /**
+     * Whether friends who open this user's profile see their badges, and their showcase of rarest
+     * achievements. On unless the user turned them off; an app that doesn't send them leaves them on.
+     */
+    val showBadges: Boolean = true,
+    val showShowcase: Boolean = true,
     /** Epoch milliseconds of the last save. Set by the server; anything the app sends is ignored. */
     val updatedAt: Long? = null,
 )
+
+/** Which optional sections of their profile a user lets friends see. */
+data class ProfileVisibility(val showBadges: Boolean = true, val showShowcase: Boolean = true)
+
+/** What [userId] lets friends see of their profile. Both sections are shown until they say otherwise. */
+fun profileVisibilityFor(userId: Uuid): ProfileVisibility = transaction {
+    ProfileVisibilities.selectAll().where { ProfileVisibilities.userId eq userId }.singleOrNull()
+        ?.let { ProfileVisibility(it[ProfileVisibilities.showBadges], it[ProfileVisibilities.showShowcase]) }
+        ?: ProfileVisibility()
+}
 
 /** What is wrong with [settings], or null when every value is one the app offers. */
 fun problemWith(settings: SettingsDto): String? = when {
@@ -50,7 +67,7 @@ fun problemWith(settings: SettingsDto): String? = when {
 
 /** The user's saved settings, or null if the app has never saved any for them. */
 fun settingsFor(userId: Uuid): SettingsDto? = transaction {
-    UserSettings.selectAll().where { UserSettings.userId eq userId }.singleOrNull()?.toDto()
+    UserSettings.selectAll().where { UserSettings.userId eq userId }.singleOrNull()?.toDto(profileVisibilityFor(userId))
 }
 
 /** Replaces the user's settings with [settings] (already checked with [problemWith]) and returns what was stored. */
@@ -67,10 +84,15 @@ fun saveSettings(userId: Uuid, settings: SettingsDto): SettingsDto = transaction
         it[friendActivityNotifications] = settings.friendActivityNotifications
         it[updatedAt] = Instant.now()
     }
-    UserSettings.selectAll().where { UserSettings.userId eq userId }.single().toDto()
+    ProfileVisibilities.upsert {
+        it[ProfileVisibilities.userId] = userId
+        it[showBadges] = settings.showBadges
+        it[showShowcase] = settings.showShowcase
+    }
+    UserSettings.selectAll().where { UserSettings.userId eq userId }.single().toDto(profileVisibilityFor(userId))
 }
 
-private fun ResultRow.toDto() = SettingsDto(
+private fun ResultRow.toDto(visibility: ProfileVisibility) = SettingsDto(
     language = this[UserSettings.language],
     themeMode = this[UserSettings.themeMode],
     homeBackdrop = this[UserSettings.homeBackdrop],
@@ -79,6 +101,8 @@ private fun ResultRow.toDto() = SettingsDto(
     rankChangeNotifications = this[UserSettings.rankChangeNotifications],
     seasonResetNotifications = this[UserSettings.seasonResetNotifications],
     friendActivityNotifications = this[UserSettings.friendActivityNotifications],
+    showBadges = visibility.showBadges,
+    showShowcase = visibility.showShowcase,
     updatedAt = this[UserSettings.updatedAt].toEpochMilli(),
 )
 //------------------------------EOF------------------------------\\
