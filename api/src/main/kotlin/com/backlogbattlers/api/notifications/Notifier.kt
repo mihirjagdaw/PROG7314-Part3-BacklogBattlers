@@ -44,18 +44,20 @@ class Notifier(
 
     /**
      * [completer] marked library entry [entryId] complete, taking their points for [monthPeriod]
-     * from [pointsBefore] to [pointsAfter]. Their friends hear about the game, and anyone they
-     * passed on the leaderboard hears that too.
+     * from [pointsBefore] to [pointsAfter]. Their friends hear about the game, and any friend they
+     * passed on the leaderboard hears that too. The leaderboard is friends-only, so nobody else is "passed".
      */
     fun gameCompleted(completer: Uuid, entryId: Uuid, pointsBefore: Int, pointsAfter: Int, monthPeriod: String) = later {
         val name = displayName(completer) ?: return@later
         val gameTitle = gameTitleFor(entryId)
+        val friends = friendIdsOf(completer)
         if (gameTitle != null) {
-            friendIdsOf(completer).forEach { friend ->
+            friends.forEach { friend ->
                 deliver(friend, Push(PushType.FRIEND_COMPLETED_GAME, actorName = name, gameTitle = gameTitle))
             }
         }
-        overtaken(completer, pointsBefore, pointsAfter, standings(monthPeriod)).forEach { passed ->
+        val friendStandings = standings(monthPeriod).filterKeys { it in friends }
+        overtaken(completer, pointsBefore, pointsAfter, friendStandings).forEach { passed ->
             deliver(passed, Push(PushType.OVERTAKEN, actorName = name))
         }
     }
