@@ -343,6 +343,20 @@ object UserPictures : Table("user_pictures")
     override val primaryKey = PrimaryKey(userId)
 }
 
+// profilevisibility table: which optional sections of a user's profile their friends get to see (the
+// badges and the showcase of rarest achievements). it is part of the settings the app syncs, so the
+// choice follows the account and the server can honour it when a friend opens the profile. a table
+// of its own for the reason UserSettings is one: SchemaUtils.create never adds columns to an
+// existing table. no row means both are shown
+object ProfileVisibilities : Table("profile_visibility")
+{
+    val userId = reference("user_id", Users.id, onDelete = ReferenceOption.CASCADE)
+    val showBadges = bool("show_badges")
+    val showShowcase = bool("show_showcase")
+
+    override val primaryKey = PrimaryKey(userId)
+}
+
 // seasonannouncements table: the months the "a new season has started" push went out for, so a restart or a
 // second instance never sends it twice
 object SeasonAnnouncements : Table("season_announcements")
@@ -374,5 +388,6 @@ val ALL_TABLES: Array<Table> = arrayOf(
     VerifiedUnlocks,
     UserPictures,
     SeasonAnnouncements,
+    ProfileVisibilities,
 )
 //------------------------------EOF------------------------------\\
