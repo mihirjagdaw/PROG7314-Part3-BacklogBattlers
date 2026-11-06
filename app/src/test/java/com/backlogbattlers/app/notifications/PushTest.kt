@@ -101,6 +101,34 @@ class PushTest {
     }
 
     @Test
+    fun `an achievement push, about something you did yourself, is held back while the app is open`() {
+        val achievements = Push(PushType.ACHIEVEMENT_UNLOCKED, me, count = 2)
+
+        assertFalse(achievements.shouldShow(me, everythingOn, appOpen = true))
+        assertTrue(achievements.shouldShow(me, everythingOn, appOpen = false))
+        // and the app being closed is the default
+        assertTrue(achievements.shouldShow(me, everythingOn))
+    }
+
+    @Test
+    fun `pushes caused by someone else or by the calendar still show while the app is open`() {
+        val people = listOf(PushType.FRIEND_REQUEST_RECEIVED, PushType.FRIEND_REQUEST_ACCEPTED, PushType.FRIEND_COMPLETED_GAME, PushType.OVERTAKEN)
+
+        people.forEach { assertTrue("$it", Push(it, me, "Ana").shouldShow(me, everythingOn, appOpen = true)) }
+        assertTrue(Push(PushType.SEASON_RESET, me).shouldShow(me, everythingOn, appOpen = true))
+        // the achievement push is the only one held back
+        assertEquals(listOf(PushType.ACHIEVEMENT_UNLOCKED), PushType.entries.filter { it.hiddenWhileAppOpen })
+    }
+
+    @Test
+    fun `being open does not make a push show that its switch or its account would hide`() {
+        val friendsOff = everythingOn.copy(friendActivityNotificationsEnabled = false)
+
+        assertFalse(Push(PushType.FRIEND_REQUEST_RECEIVED, me, "Ana").shouldShow(me, friendsOff, appOpen = true))
+        assertFalse(Push(PushType.FRIEND_REQUEST_RECEIVED, me, "Ana").shouldShow("someone-else", everythingOn, appOpen = true))
+    }
+
+    @Test
     fun `tapping a push opens its matching screen`() {
         assertEquals(R.id.friendsFragment, PushNotifications.destinationOf(PushType.FRIEND_REQUEST_RECEIVED))
         assertEquals(R.id.friendsFragment, PushNotifications.destinationOf(PushType.FRIEND_REQUEST_ACCEPTED))

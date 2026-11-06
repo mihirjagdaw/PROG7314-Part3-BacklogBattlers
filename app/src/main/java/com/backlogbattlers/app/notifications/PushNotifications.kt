@@ -21,7 +21,12 @@ import com.backlogbattlers.app.util.formatPoints
 
 //------------------------------
 // builds and shows the notifications for pushes, and tells MainActivity which screen a tapped
-// one should open
+// one should open.
+// channels, the POST_NOTIFICATIONS permission and the tap's PendingIntent follow the Android
+// notification guides:
+// https://developer.android.com/develop/ui/views/notifications/channels
+// https://developer.android.com/develop/ui/views/notifications/notification-permission
+// https://developer.android.com/develop/ui/views/notifications/navigation
 object PushNotifications {
 
     private const val TAG = "PushNotifications"

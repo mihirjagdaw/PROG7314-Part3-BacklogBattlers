@@ -14,7 +14,15 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
 
-/** Delivers a data payload to phones. Returns the tokens that no longer exist, so they can be forgotten. */
+/**
+ * Delivers a data payload to phones. Returns the tokens that no longer exist, so they can be forgotten.
+ *
+ * The real implementation, [FcmPushSender], follows the Firebase Cloud Messaging guides: sending
+ * from a server with the Admin SDK (https://firebase.google.com/docs/cloud-messaging/send-message),
+ * data-only messages that the app turns into a notification itself
+ * (https://firebase.google.com/docs/cloud-messaging/android/receive), and removing registration
+ * tokens FCM reports as gone (https://firebase.google.com/docs/cloud-messaging/manage-tokens).
+ */
 fun interface PushSender {
     suspend fun send(tokens: List<String>, data: Map<String, String>): List<String>
 

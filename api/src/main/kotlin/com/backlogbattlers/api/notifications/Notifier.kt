@@ -73,15 +73,19 @@ class Notifier(
         deliver(user, Push(PushType.SEASON_RESET, monthPeriod = monthPeriod, lastRank = lastRank, lastPoints = lastPoints))
     }
 
-    /** Sends [push] to every phone of [recipient], unless they switched that kind off. */
-    suspend fun deliver(recipient: Uuid, push: Push) {
+    /**
+     * Sends [push] to every phone of [recipient], unless they switched that kind off. Returns how
+     * many phones it was sent to: 0 when the kind is switched off or they have no phone signed in.
+     */
+    suspend fun deliver(recipient: Uuid, push: Push): Int {
         if (!wantsPush(recipient, push.type)) {
             log.debug("{} is switched off for this user, not sending", push.type)
-            return
+            return 0
         }
         val tokens = tokensFor(recipient)
-        if (tokens.isEmpty()) return
+        if (tokens.isEmpty()) return 0
         forgetTokens(sender.send(tokens, push.data(recipient)))
+        return tokens.size
     }
 
     private fun later(block: suspend () -> Unit) = launch {

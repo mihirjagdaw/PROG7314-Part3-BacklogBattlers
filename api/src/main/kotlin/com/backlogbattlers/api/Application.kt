@@ -18,6 +18,7 @@ import com.backlogbattlers.api.routes.authRoutes
 import com.backlogbattlers.api.routes.friendRoutes
 import com.backlogbattlers.api.routes.gameRoutes
 import com.backlogbattlers.api.routes.completionRoutes
+import com.backlogbattlers.api.routes.debugPushRoutes
 import com.backlogbattlers.api.routes.deviceRoutes
 import com.backlogbattlers.api.routes.healthRoutes
 import com.backlogbattlers.api.routes.leaderboardRoutes
@@ -85,6 +86,12 @@ fun Application.module() {
         deviceRoutes(currentUser = bearerCurrentUser(jwtService))
         activityRoutes(currentUser = bearerCurrentUser(jwtService))
         profileRoutes(currentUser = bearerCurrentUser(jwtService))
+        // off unless DEBUG_PUSH_ENABLED=true is set on the server, e.g. while recording the demo video
+        debugPushRoutes(
+            notifier,
+            enabled = Config.default.get("DEBUG_PUSH_ENABLED").equals("true", ignoreCase = true),
+            currentUser = bearerCurrentUser(jwtService),
+        )
     }
 }
 //------------------------------EOF------------------------------\\

@@ -22,12 +22,17 @@ enum class PushType(
     val friendsTab: String? = null,
     // the pushes about a friend say who; the ones about you alone (your achievements, a new season) do not
     val hasActor: Boolean = true,
+    // true for a push about something the player does themselves in the app (an import's unlocks),
+    // which they are looking at while it happens: it is only shown when the app is not open. the
+    // ones caused by someone else, or by the calendar (a friend request, being passed, a new season)
+    // are worth showing even while the app is open
+    val hiddenWhileAppOpen: Boolean = false,
 ) {
     FRIEND_REQUEST_RECEIVED(PushChannel.FRIENDS, friendsTab = OPEN_TAB_REQUESTS),
     FRIEND_REQUEST_ACCEPTED(PushChannel.FRIENDS),
     FRIEND_COMPLETED_GAME(PushChannel.FRIENDS),
     OVERTAKEN(PushChannel.COMPETITION),
-    ACHIEVEMENT_UNLOCKED(PushChannel.ACHIEVEMENTS, hasActor = false),
+    ACHIEVEMENT_UNLOCKED(PushChannel.ACHIEVEMENTS, hasActor = false, hiddenWhileAppOpen = true),
     SEASON_RESET(PushChannel.COMPETITION, hasActor = false),
     ;
 
@@ -66,9 +71,11 @@ data class Push(
     //------------------------------
     // shown only to the account it was sent to (not after it signed out, or to whoever signed in
     // next), and only while its switch is on. the API checks the switch too; this covers a change
-    // the API hasn't been told about yet, e.g. one made offline
-    fun shouldShow(signedInUserId: String?, settings: UserSettings): Boolean =
-        signedInUserId != null && signedInUserId == recipientId && type.isWanted(settings)
+    // the API hasn't been told about yet, e.g. one made offline. [appOpen] is whether the app is on
+    // screen: a push about the player's own action is held back then (see PushType.hiddenWhileAppOpen)
+    fun shouldShow(signedInUserId: String?, settings: UserSettings, appOpen: Boolean = false): Boolean =
+        signedInUserId != null && signedInUserId == recipientId && type.isWanted(settings) &&
+            !(appOpen && type.hiddenWhileAppOpen)
 
     companion object {
         //------------------------------

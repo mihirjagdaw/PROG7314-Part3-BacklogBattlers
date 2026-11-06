@@ -527,7 +527,7 @@
     </plurals>
     <string name="push_achievement_rarest">Eyinqaba kakhulu: %1$s.</string>
     <plurals name="push_achievement_summary">
-        <item quantity="one">Uvule impumelelo entsha engu-%1$d.</item>
+        <item quantity="one">Uvule impumelelo entsha.</item>
         <item quantity="other">Uvule izimpumelelo ezintsha ezingu-%1$d emidlalweni eminingi.</item>
     </plurals>
     <string name="push_season_title">Isizini entsha iqalile</string>
