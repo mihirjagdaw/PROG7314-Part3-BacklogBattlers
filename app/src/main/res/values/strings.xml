@@ -130,7 +130,6 @@
 
     <!-- friends feature -->
     <string name="tab_all_friends">All Friends</string>
-    <string name="tab_following">Following</string>
     <string name="tab_requests">Requests</string>
     <string name="reject">Reject</string>
     <string name="pending">Pending</string>
@@ -142,8 +141,6 @@
     <string name="no_search_results_body">Try a different name</string>
     <string name="search_friends_prompt_title">Find friends by name</string>
     <string name="search_friends_prompt_body">Tap search or press enter when ready</string>
-    <string name="following_empty_title">Following isn\'t available yet</string>
-    <string name="following_empty_body">Check back once this is built</string>
     <string name="no_friends_title_empty">It\'s just you for now</string>
     <string name="no_friends_body_empty">Everyone on your friends list is ranked by points earned this month, and the leaderboard resets on the 1st.</string>
     <string name="share_invite_link">Share Invite Link</string>

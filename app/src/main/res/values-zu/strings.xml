@@ -118,7 +118,6 @@
 
     <!-- friends feature -->
     <string name="tab_all_friends">Bonke abangane</string>
-    <string name="tab_following">Obalandelayo</string>
     <string name="tab_requests">Izicelo</string>
     <string name="reject">Yenqaba</string>
     <string name="pending">Kulindile</string>
@@ -130,8 +129,6 @@
     <string name="no_search_results_body">Zama elinye igama</string>
     <string name="search_friends_prompt_title">Thola abangane ngegama</string>
     <string name="search_friends_prompt_body">Thepha usesho noma ucindezele u-enter uma usulungile</string>
-    <string name="following_empty_title">Ukulandela akukatholakali okwamanje</string>
-    <string name="following_empty_body">Buya uzobheka uma sekwakhiwe</string>
     <string name="no_friends_title_empty">Nguwe wedwa okwamanje</string>
     <string name="no_friends_body_empty">Wonke umuntu ohlwini lwakho lwabangane ulandelaniswa ngamaphuzu atholwe kule nyanga, futhi ibhodi labaphambili liqala kabusha mhla zi-1.</string>
     <string name="share_invite_link">Yabelana ngesixhumanisi sesimemo</string>

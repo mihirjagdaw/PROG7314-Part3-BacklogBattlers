@@ -88,23 +88,10 @@
             android:text="@string/tab_all_friends"
             android:textColor="@color/page_background" />
 
-        <TextView
-            android:id="@+id/btn_tab_following"
-            style="@style/Text.CaptionStrong"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="3dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_pill_outline"
-            android:gravity="center"
-            android:paddingVertical="8dp"
-            android:text="@string/tab_following"
-            android:textColor="@color/text_secondary" />
-
         <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="3dp"
             android:layout_weight="1">
 
             <TextView
