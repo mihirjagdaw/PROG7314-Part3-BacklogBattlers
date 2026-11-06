@@ -302,6 +302,8 @@
     <string name="biometric_lock_sign_in_again">Sign in again</string>
     <string name="biometric_lock_changed">Your fingerprint or face settings have changed, so unlock is switched off to keep your account safe. Sign in again to carry on.</string>
     <string name="biometric_lock_not_verified">We couldn\'t confirm it was you. Try again, or sign in again.</string>
+    <string name="biometric_turn_off_title">Turn off fingerprint unlock?</string>
+    <string name="biometric_turn_off_not_confirmed">Fingerprint unlock stays on</string>
     <string name="cd_fingerprint_icon">Fingerprint icon</string>
 
 

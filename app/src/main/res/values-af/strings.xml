@@ -276,6 +276,8 @@
     <string name="biometric_lock_sign_in_again">Teken weer aan</string>
     <string name="biometric_lock_changed">Jou vingerafdruk- of gesigstellings het verander, daarom is ontsluit afgeskakel om jou rekening veilig te hou. Meld weer aan om voort te gaan.</string>
     <string name="biometric_lock_not_verified">Ons kon nie bevestig dat dit jy was nie. Probeer weer, of meld weer aan.</string>
+    <string name="biometric_turn_off_title">Skakel vingerafdrukontsluiting af?</string>
+    <string name="biometric_turn_off_not_confirmed">Vingerafdrukontsluiting bly aan</string>
     <string name="cd_fingerprint_icon">Vingerafdrukikoon</string>
 
     <!-- help and support -->

@@ -99,7 +99,11 @@ class SettingsViewModel : ViewModel() {
     //------------------------------
     // biometric unlock preference, kept on this phone only: it depends on this phone's sensor
     fun setBiometricLogin(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setBiometricLoginEnabled(enabled) }
+        viewModelScope.launch {
+            settingsRepository.setBiometricLoginEnabled(enabled)
+            // the lock's keystore key goes with it, a fresh one is made if the lock is turned on again
+            if (!enabled) ServiceLocator.unlockKey.delete()
+        }
     }
 
     //------------------------------
@@ -119,6 +123,7 @@ class SettingsViewModel : ViewModel() {
                 if (userId != null) ServiceLocator.searchHistoryRepository.clear(userId)
                 if (userId != null) ServiceLocator.profileCustomizationRepository.clear(userId)
                 settingsRepository.setBiometricLoginEnabled(false)
+                ServiceLocator.unlockKey.delete()
                 settingsRepository.setSyncPending(false)
             }
             withContext(Dispatchers.Main) { onDone(result) }
