@@ -10,7 +10,9 @@ import com.backlogbattlers.api.db.LibraryStatus
 import com.backlogbattlers.api.db.MonthlyLeaderboardEntries
 import com.backlogbattlers.api.db.UnlockedAchievements
 import com.backlogbattlers.api.db.Users
+import com.backlogbattlers.api.friends.areFriends
 import com.backlogbattlers.api.scoring.currentMonthPeriod
+import com.backlogbattlers.api.settings.profileVisibilityFor
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
@@ -54,6 +56,13 @@ data class ProfileDto(
     val unlockedRecently: Int,
     /** The games they unlocked achievements in during those two weeks, latest first. */
     val recentActivity: List<RecentActivityDto>,
+    /**
+     * True when this is a friend's profile and they have chosen not to show their badges: [badges] is then
+     * empty, so the app can say so instead of showing a profile with none earned. Never true on your own.
+     */
+    val badgesHidden: Boolean = false,
+    /** The same for the showcase of rarest achievements. */
+    val showcaseHidden: Boolean = false,
 )
 
 @Serializable
@@ -79,6 +88,25 @@ data class RecentActivityDto(
     val achievementsUnlocked: Int,
     val achievementsTotal: Int,
 )
+
+/**
+ * [target]'s profile as [viewer] may see it, or null when they may not (the same answer as for a
+ * user who does not exist, so it never says who has an account). You can see your own in full and
+ * your friends' without the sections they switched off in Settings; nobody else's at all.
+ */
+fun profileForViewer(viewer: Uuid, target: Uuid): ProfileDto? = transaction {
+    if (viewer != target && !areFriends(viewer, target)) return@transaction null
+    val profile = profileFor(target) ?: return@transaction null
+    if (viewer == target) return@transaction profile
+
+    val visibility = profileVisibilityFor(target)
+    profile.copy(
+        badges = if (visibility.showBadges) profile.badges else emptyList(),
+        rarestAchievements = if (visibility.showShowcase) profile.rarestAchievements else emptyList(),
+        badgesHidden = !visibility.showBadges,
+        showcaseHidden = !visibility.showShowcase,
+    )
+}
 
 /** The profile of [userId], or null when there is no such user. */
 fun profileFor(userId: Uuid, currentMonth: String = currentMonthPeriod(), now: Instant = Instant.now()): ProfileDto? = transaction {

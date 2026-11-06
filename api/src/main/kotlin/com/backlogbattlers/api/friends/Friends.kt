@@ -88,10 +88,18 @@ private fun canonicalPair(a: Uuid, b: Uuid): Pair<Uuid, Uuid> {
 }
 
 //------------------------------
-// checks whether a friendship exists between two users
-private fun areFriends(a: Uuid, b: Uuid): Boolean {
+// checks whether a friendship exists between two users. call it inside a transaction
+fun areFriends(a: Uuid, b: Uuid): Boolean {
     val (userAId, userBId) = canonicalPair(a, b)
     return Friendships.selectAll().where { (Friendships.userAId eq userAId) and (Friendships.userBId eq userBId) }.any()
+}
+
+//------------------------------
+// the user ids of everyone the specified user is friends with. call it inside a transaction
+fun friendIdsOf(userId: Uuid): List<Uuid> {
+    return Friendships.selectAll()
+        .where { (Friendships.userAId eq userId) or (Friendships.userBId eq userId) }
+        .map { if (it[Friendships.userAId] == userId) it[Friendships.userBId] else it[Friendships.userAId] }
 }
 
 //------------------------------
