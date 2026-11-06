@@ -248,15 +248,18 @@ class NotifierTest {
     }
 
     @Test
-    fun `completing a game tells your friends, and tells whoever you passed on the leaderboard`() = testApplication {
+    fun `completing a game tells your friends, and tells the friends you passed on the leaderboard`() = testApplication {
         installApi()
         val ana = newUser("Ana")
         val friend = newUser("Ben", "ben-phone")
         val rival = newUser("Cleo", "cleo-phone")
         val stranger = newUser("Dev", "dev-phone")
+        val leader = newUser("Eve", "eve-phone")
         befriend(ana, friend)
+        befriend(ana, rival)
         setMonthlyPoints(rival, 50) // Ana goes from 0 to 70 and passes her
-        setMonthlyPoints(stranger, 500) // still well ahead
+        setMonthlyPoints(stranger, 40) // passed on points too, but not a friend, so not on Ana's board
+        setMonthlyPoints(leader, 500) // a non-friend well ahead
         caller = ana
 
         client.post("/users/me/library/${hadesEntry(ana)}/complete") {
@@ -264,12 +267,12 @@ class NotifierTest {
             setBody("""{"completionType":"${CompletionType.MAIN_STORY}"}""")
         }
 
-        val byToken = sent.associateBy { it.tokens.single() }
-        assertEquals(setOf("ben-phone", "cleo-phone"), byToken.keys)
-        assertEquals("FRIEND_COMPLETED_GAME", byToken.getValue("ben-phone").data["type"])
-        assertEquals("Hades", byToken.getValue("ben-phone").data["gameTitle"])
-        assertEquals("OVERTAKEN", byToken.getValue("cleo-phone").data["type"])
-        assertEquals("Ana", byToken.getValue("cleo-phone").data["actorName"])
+        val byType = sent.groupBy({ it.data["type"] }, { it.tokens.single() })
+        assertEquals(setOf("FRIEND_COMPLETED_GAME", "OVERTAKEN"), byType.keys)
+        assertEquals(setOf("ben-phone", "cleo-phone"), byType.getValue("FRIEND_COMPLETED_GAME").toSet())
+        assertEquals(listOf("cleo-phone"), byType.getValue("OVERTAKEN"))
+        assertEquals("Hades", sent.first { it.data["type"] == "FRIEND_COMPLETED_GAME" }.data["gameTitle"])
+        assertEquals("Ana", sent.single { it.data["type"] == "OVERTAKEN" }.data["actorName"])
     }
 
     @Test
@@ -277,6 +280,7 @@ class NotifierTest {
         installApi()
         val ana = newUser("Ana")
         val rival = newUser("Cleo", "cleo-phone")
+        befriend(ana, rival)
         saveSettings(rival, everythingOn().copy(rankChangeNotifications = false))
         setMonthlyPoints(rival, 50)
         caller = ana
@@ -286,7 +290,8 @@ class NotifierTest {
             setBody("""{"completionType":"${CompletionType.MAIN_STORY}"}""")
         }
 
-        assertEquals(emptyList(), sent)
+        // she still hears about the game (that switch is on), just not about being passed
+        assertEquals(listOf("FRIEND_COMPLETED_GAME"), sent.map { it.data["type"] })
     }
 
     @Test

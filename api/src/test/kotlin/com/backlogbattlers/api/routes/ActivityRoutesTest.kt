@@ -189,18 +189,23 @@ class ActivityRoutesTest {
         val near = newUser("Near")
         val far = newUser("Far")
         val ahead = newUser("Ahead")
+        val stranger = newUser("Stranger")
         val entry = addEntry(me)
         val month = currentMonthPeriod()
         transaction(db) {
             MonthlyLeaderboardEntries.insert { it[userId] = near; it[monthPeriod] = month; it[monthlyPoints] = 15 }
             MonthlyLeaderboardEntries.insert { it[userId] = far; it[monthPeriod] = month; it[monthlyPoints] = 5 }
             MonthlyLeaderboardEntries.insert { it[userId] = ahead; it[monthPeriod] = month; it[monthlyPoints] = 100_000 }
+            MonthlyLeaderboardEntries.insert { it[userId] = stranger; it[monthPeriod] = month; it[monthlyPoints] = 10 }
         }
         befriend(me, near)
+        befriend(me, far)
+        befriend(me, ahead)
         unlockAndVerifyEverything(entry)
         caller = me
 
-        // the completion earns more than 15 points, so Near (15) and Far (5) are passed and Ahead is not
+        // the completion earns more than 15 points, so friends Near (15) and Far (5) are passed and Ahead is not.
+        // Stranger (10) is not a friend, so isn't on the board and isn't counted as passed
         completeLibraryEntry(me, entry, CompletionType.COMPLETIONIST, SteamCheck(SteamCheckStatus.NOT_NEEDED))
 
         val passed = events(client.get("/activity").bodyAsText()).events.single { it.type == ActivityType.RANK_PASSED }
