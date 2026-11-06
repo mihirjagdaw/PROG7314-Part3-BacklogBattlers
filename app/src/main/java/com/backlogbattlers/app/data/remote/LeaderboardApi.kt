@@ -34,8 +34,8 @@ data class LeaderboardResponseDto(
     val me: LeaderboardEntryDto?,
 )
 
-// http client wrapping the backend's monthly leaderboard endpoint. the endpoint itself needs no
-// sign-in, but the bearer header is attached anyway so the backend can fill in `me` when possible
+// http client wrapping the backend's monthly leaderboard endpoint. the board is the signed in user
+// and their friends (friends on 0 points included), so the bearer header is what decides who is on it
 class LeaderboardApi(
     private val httpClient: HttpClient,
     private val baseUrl: String,
